@@ -98,7 +98,8 @@
 - [x] Create backend `Dockerfile` (multi-stage Go build, 17.8MB image)
 - [x] Create frontend `Dockerfile` (multi-stage Node build + nginx, 61.8MB image)
 - [x] Create `docker-compose.yml` wiring both services
-- [x] Verify `docker compose up` boots all services locally
+- [x] Create `Makefile` with `make up`, `make down`, `make build`, `make test` etc.
+- [x] Verify `docker compose up` boots all services locall...
   - `curl localhost:5173` → frontend HTML
   - `curl localhost:8080/api/health` → `{"status":"ok"}`
   - `curl localhost:5173/api/years` → 24 years
@@ -109,7 +110,7 @@
 **Milestone:** One-command local startup works
 
 ### Task 5.2 — End-to-End Testing
-- [ ] Write exactly **3 E2E tests** covering the three user stories (happy path only):
+- [ ] Write 3 E2E tests covering the three user stories:
   1. Browse tournments → filter by year → select a tournament
   2. View matches for a selected tournament
   3. Click a match → view match details → navigate back
