@@ -1,0 +1,19 @@
+{
+  "name": "world-cup-dashboard",
+  "private": true,
+  "workspaces": ["frontend"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w frontend\" \"cd backend && go run ./src/server.go\"",
+    "dev:frontend": "npm run dev -w frontend",
+    "dev:backend": "cd backend && go run ./src/server.go",
+    "build:frontend": "npm run build -w frontend",
+    "build:backend": "cd backend && go build -o bin/server ./src/server.go",
+    "test": "npm run test -w frontend && cd backend && go test ./...",
+    "lint": "cd backend && golangci-lint run ./...",
+    "format": "prettier --check frontend/"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "prettier": "^3.4.0"
+  }
+}

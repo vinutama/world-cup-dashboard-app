@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "gitnexus-exploring": {
+      "source": "abhigyanpatwari/gitnexus",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitnexus/gitnexus-exploring/SKILL.md",
+      "computedHash": "ac1368abc0754b1f547aa0cc218ae2f62a27217045e4e55f625d43b0039161ad"
+    }
+  }
+}
