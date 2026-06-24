@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 )
 
@@ -70,6 +69,5 @@ func (r *YearRepo) FetchYears(ctx context.Context) ([]int, error) {
 		years = append(years, year)
 	}
 
-	sort.Ints(years)
 	return years, nil
 }

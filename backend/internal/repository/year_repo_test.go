@@ -12,10 +12,10 @@ func TestFetchYears_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`[
-			{"name": "1930", "type": "dir"},
-			{"name": "1934", "type": "dir"},
-			{"name": "2018", "type": "dir"},
 			{"name": "2022", "type": "dir"},
+			{"name": "1930", "type": "dir"},
+			{"name": "2018", "type": "dir"},
+			{"name": "1934", "type": "dir"},
 			{"name": "README.md", "type": "file"},
 			{"name": "LICENSE.md", "type": "file"}
 		]`))
@@ -32,11 +32,9 @@ func TestFetchYears_Success(t *testing.T) {
 		t.Fatalf("expected 4 years, got %d: %v", len(years), years)
 	}
 
-	expected := []int{1930, 1934, 2018, 2022}
-	for i, y := range years {
-		if y != expected[i] {
-			t.Errorf("years[%d] = %d, want %d", i, y, expected[i])
-		}
+	// Repo returns raw order (GitHub API order) — no sorting test
+	if years[0] != 2022 || years[2] != 2018 {
+		t.Errorf("expected raw API order, got %v", years)
 	}
 }
 

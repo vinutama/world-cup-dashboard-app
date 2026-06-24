@@ -13,10 +13,11 @@ import (
 func TestGetAvailableYears_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		// Return unsorted to test service-level sorting
 		w.Write([]byte(`[
+			{"name": "2022", "type": "dir"},
 			{"name": "1930", "type": "dir"},
-			{"name": "1998", "type": "dir"},
-			{"name": "2022", "type": "dir"}
+			{"name": "1998", "type": "dir"}
 		]`))
 	}))
 	defer server.Close()
@@ -30,11 +31,11 @@ func TestGetAvailableYears_Success(t *testing.T) {
 
 	expected := []int{1930, 1998, 2022}
 	if len(years) != len(expected) {
-		t.Fatalf("got %v, want %v", years, expected)
+		t.Fatalf("got %v (len=%d), want %v (len=%d)", years, len(years), expected, len(expected))
 	}
 	for i, y := range years {
 		if y != expected[i] {
-			t.Errorf("years[%d] = %d, want %d", i, y, expected[i])
+			t.Errorf("years[%d] = %d, want %d (sorted ascending)", i, y, expected[i])
 		}
 	}
 }
