@@ -136,3 +136,52 @@ func TestFetchTournament_MalformedJSON(t *testing.T) {
 		t.Fatal("expected error for malformed JSON, got nil")
 	}
 }
+
+func TestFetchTournament_StringMinute(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{
+			"name": "World Cup 2026",
+			"matches": [
+				{
+					"round": "Matchday 1",
+					"date": "2026-06-11",
+					"time": "13:00 UTC-6",
+					"team1": "Mexico",
+					"team2": "South Africa",
+					"score": {"ft": [2, 0], "ht": [1, 0]},
+					"goals1": [
+						{"name": "Juli\u00e1n Qui\u00f1ones", "minute": "9"},
+						{"name": "Ra\u00fal Jim\u00e9nez", "minute": "67"}
+					],
+					"goals2": [],
+					"group": "Group A",
+					"ground": "Mexico City"
+				}
+			]
+		}`))
+	}))
+	defer server.Close()
+
+	repo := &MatchRepo{Client: http.DefaultClient, URLTmpl: server.URL + "/%d/test"}
+	tournament, err := repo.FetchTournament(context.Background(), 2026)
+	if err != nil {
+		t.Fatalf("unexpected error with string minutes: %v", err)
+	}
+	if tournament.Name != "World Cup 2026" {
+		t.Errorf("name = %q, want %q", tournament.Name, "World Cup 2026")
+	}
+	if len(tournament.Matches) != 1 {
+		t.Fatalf("expected 1 match, got %d", len(tournament.Matches))
+	}
+	m := tournament.Matches[0]
+	if len(m.Goals1) != 2 {
+		t.Fatalf("expected 2 goals, got %d", len(m.Goals1))
+	}
+	if m.Goals1[0].Name != "Juli\u00e1n Qui\u00f1ones" || m.Goals1[0].Minute != 9 {
+		t.Errorf("first goal = %+v", m.Goals1[0])
+	}
+	if m.Goals1[1].Minute != 67 {
+		t.Errorf("second goal minute = %d, want 67", m.Goals1[1].Minute)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/mkhevin/world-cup-dashboard/backend/internal/model"
 )
@@ -36,11 +37,11 @@ type rawScore struct {
 }
 
 type rawGoal struct {
-	Name    string `json:"name"`
-	Minute  int    `json:"minute"`
-	Offset  *int   `json:"offset,omitempty"`
-	OwnGoal *bool  `json:"owngoal,omitempty"`
-	Penalty *bool  `json:"penalty,omitempty"`
+	Name    string      `json:"name"`
+	Minute  interface{} `json:"minute"`
+	Offset  *int        `json:"offset,omitempty"`
+	OwnGoal *bool       `json:"owngoal,omitempty"`
+	Penalty *bool       `json:"penalty,omitempty"`
 }
 
 // MatchRepo fetches World Cup match data from the openfootball GitHub repository.
@@ -110,9 +111,16 @@ func (r *MatchRepo) FetchTournament(ctx context.Context, year int) (*model.Tourn
 }
 
 func convertGoal(rg rawGoal) model.Goal {
+	var minute int
+	switch v := rg.Minute.(type) {
+	case float64:
+		minute = int(v)
+	case string:
+		minute, _ = strconv.Atoi(v)
+	}
 	return model.Goal{
 		Name:    rg.Name,
-		Minute:  rg.Minute,
+		Minute:  minute,
 		Offset:  rg.Offset,
 		OwnGoal: rg.OwnGoal,
 		Penalty: rg.Penalty,
