@@ -273,13 +273,28 @@ func TestGetTournamentMatches(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
-	var matches []model.Match
-	json.NewDecoder(rec.Body).Decode(&matches)
-	if len(matches) != 2 {
-		t.Fatalf("expected 2 matches, got %d", len(matches))
+	var result struct {
+		Matches    []model.Match `json:"matches"`
+		Page       int           `json:"page"`
+		PerPage    int           `json:"per_page"`
+		Total      int           `json:"total"`
+		TotalPages int           `json:"total_pages"`
 	}
-	if matches[0].Team1 != "Russia" {
-		t.Errorf("expected Russia, got %s", matches[0].Team1)
+	json.NewDecoder(rec.Body).Decode(&result)
+	if len(result.Matches) != 2 {
+		t.Fatalf("expected 2 matches, got %d", len(result.Matches))
+	}
+	if result.Matches[0].Team1 != "Russia" {
+		t.Errorf("expected Russia, got %s", result.Matches[0].Team1)
+	}
+	if result.Page != 1 {
+		t.Errorf("expected page=1, got %d", result.Page)
+	}
+	if result.Total != 2 {
+		t.Errorf("expected total=2, got %d", result.Total)
+	}
+	if result.TotalPages != 1 {
+		t.Errorf("expected total_pages=1, got %d", result.TotalPages)
 	}
 }
 

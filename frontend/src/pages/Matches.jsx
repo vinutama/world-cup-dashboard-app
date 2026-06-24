@@ -1,22 +1,36 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 export default function Matches() {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPage = parseInt(searchParams.get('page'), 10) || 1;
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(1);
+  const perPage = 10;
 
   useEffect(() => {
-    fetch(`/api/tournaments/${id}/matches`)
+    setLoading(true);
+    fetch(`/api/tournaments/${id}/matches?page=${page}&per_page=${perPage}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch matches');
         return res.json();
       })
-      .then(setMatches)
+      .then((data) => {
+        setMatches(data.matches);
+        setTotalPages(data.total_pages);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, page]);
+
+  const goToPage = (p) => {
+    setPage(p);
+    setSearchParams({ page: p.toString() });
+  };
 
   if (loading) return <div className="loading">Loading matches...</div>;
   if (error) return <div className="error">Error: {error}</div>;
@@ -32,7 +46,11 @@ export default function Matches() {
         {matches.map((m, idx) => {
           const matchId = `${id}-${idx}`;
           return (
-            <Link to={`/matches/${matchId}`} key={matchId} className="match-card">
+            <Link
+              to={`/matches/${matchId}`}
+              key={matchId}
+              className="match-card"
+            >
               <div className="match-info">
                 <span className="match-round">{m.round}</span>
                 <span className="match-date">{m.date}</span>
@@ -49,6 +67,28 @@ export default function Matches() {
           );
         })}
       </div>
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button
+            className="btn"
+            onClick={() => goToPage(page - 1)}
+            disabled={page <= 1}
+          >
+            &larr; Previous
+          </button>
+          <span className="page-info">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            className="btn"
+            onClick={() => goToPage(page + 1)}
+            disabled={page >= totalPages}
+          >
+            Next &rarr;
+          </button>
+        </div>
+      )}
     </div>
   );
 }
