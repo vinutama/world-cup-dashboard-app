@@ -121,7 +121,7 @@ func (h *Handler) GetTournament(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tournaments[0])
 }
 
-// GetTournamentMatches returns all matches for a tournament.
+// GetTournamentMatches returns paginated matches for a tournament.
 func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	year, err := strconv.Atoi(id)
@@ -130,13 +130,64 @@ func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	matches, err := h.matchSvc.GetMatches(r.Context(), year)
+	page, perPage := parsePaginationParams(r)
+
+	allMatches, err := h.matchSvc.GetMatches(r.Context(), year)
 	if err != nil {
 		h.logger.Error("failed to get matches", "year", year, "error", err)
 		writeError(w, http.StatusNotFound, "tournament not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, matches)
+
+	total := len(allMatches)
+	totalPages := (total + perPage - 1) / perPage
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	// Clamp page to valid range
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+
+	// Slice the matches for the requested page
+	start := (page - 1) * perPage
+	end := start + perPage
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"matches":     allMatches[start:end],
+		"page":        page,
+		"per_page":    perPage,
+		"total":       total,
+		"total_pages": totalPages,
+	})
+}
+
+// parsePaginationParams extracts and validates page & per_page from query params.
+func parsePaginationParams(r *http.Request) (page, perPage int) {
+	page = 1
+	perPage = 10
+
+	if p := r.URL.Query().Get("page"); p != "" {
+		if v, err := strconv.Atoi(p); err == nil && v > 0 {
+			page = v
+		}
+	}
+	if pp := r.URL.Query().Get("per_page"); pp != "" {
+		if v, err := strconv.Atoi(pp); err == nil && v > 0 && v <= 100 {
+			perPage = v
+		}
+	}
+	return
 }
 
 // GetMatch returns a single match by composite ID "year-index" (e.g., "2018-5").

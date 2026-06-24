@@ -288,6 +288,40 @@ a:hover {
   list-style: none;
 }
 
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+}
+.btn:hover {
+  background: var(--surface-hover);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+.page-info {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
 /* States */
 .loading, .error, .empty {
   text-align: center;
