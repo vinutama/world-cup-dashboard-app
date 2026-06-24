@@ -1,0 +1,24 @@
+import { Routes, Route } from 'react-router-dom';
+import Layout from './layout/Layout';
+import Welcome from './pages/Welcome';
+import Tournaments from './pages/Tournaments';
+import Matches from './pages/Matches';
+import MatchDetail from './pages/MatchDetail';
+import NotFound from './pages/NotFound';
+import ErrorBoundary from './pages/ErrorBoundary';
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Welcome />} />
+          <Route path="/tournaments" element={<Tournaments />} />
+          <Route path="/tournaments/:id/matches" element={<Matches />} />
+          <Route path="/matches/:id" element={<MatchDetail />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Layout>
+    </ErrorBoundary>
+  );
+}
