@@ -46,6 +46,9 @@ func (s *MatchService) GetTournaments(ctx context.Context) ([]*model.Tournament,
 			result = append(result, t)
 		}
 		s.cache.mu.RUnlock()
+		sort.SliceStable(result, func(i, j int) bool {
+			return result[i].Year < result[j].Year
+		})
 		return result, nil
 	}
 	s.cache.mu.RUnlock()
