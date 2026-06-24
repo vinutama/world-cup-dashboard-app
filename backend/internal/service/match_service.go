@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/mkhevin/world-cup-dashboard/backend/internal/model"
@@ -110,6 +111,10 @@ func (s *MatchService) refreshCache(ctx context.Context) ([]*model.Tournament, e
 			fmt.Printf("warning: failed to fetch year %d: %v\n", year, err)
 			continue
 		}
+		// Sort matches by date for consistent ordering across refreshes
+		sort.SliceStable(t.Matches, func(i, j int) bool {
+			return t.Matches[i].Date < t.Matches[j].Date
+		})
 		tmp[year] = t
 		tournaments = append(tournaments, t)
 	}
