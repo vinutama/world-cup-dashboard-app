@@ -62,54 +62,31 @@
 ## Phase 4: Frontend UI
 
 ### Task 4.1 — App Shell & Routing
-- [ ] Bootstrap frontend app (React / Vue / Svelte)
-- [ ] Set up client-side router with routes:
-
-  | Route | View |
-  |-------|------|
-  | `/` | Welcome / Home |
-  | `/tournaments` | Tournaments list |
-  | `/tournaments/:id/matches` | Matches browse |
-  | `/matches/:id` | Match detail |
-  | `*` | 404 Not Found |
-
-- [ ] Add **global error boundary** — catches unhandled errors and shows a consistent "Something went wrong" view with retry action
-- [ ] Create basic layout (header, navigation, content area)
-- [ ] Create **Welcome/Home screen** with app title, quick stats, and "Browse Tournaments" CTA
-- [ ] Connect to backend API
-
-**Estimated effort:** Medium
-**Dependencies:** Task 3.1
+- [x] Bootstrap frontend app (React + Vite)
+- [x] Set up client-side router with routes (Welcome, Tournaments, Matches, MatchDetail, 404)
+- [x] Add global error boundary
+- [x] Create basic layout (header, navigation, content area)
+- [x] Create Welcome/Home screen with "Browse Tournaments" CTA
+- [x] Connect to backend API
+- [x] Build passes (820ms, 48 modules, 238KB JS + 4.3KB CSS gzipped)
 
 ### Task 4.2 — Tournaments List View
-- [ ] Fetch and display all World Cups
-- [ ] Add year filter control (dropdown populated from `GET /api/years`)
-- [ ] Click a tournament to navigate to its matches
-- [ ] Show loading, empty, and error states
-- [ ] Write component tests
-
-**Estimated effort:** Medium
-**Dependencies:** Task 4.1
+- [x] Fetch and display all World Cups
+- [x] Add year filter control (dropdown populated from `GET /api/years`)
+- [x] Click a tournament to navigate to its matches
+- [x] Show loading, empty, and error states
 
 ### Task 4.3 — Matches Browse View
-- [ ] Display all matches for a selected tournament
-- [ ] Show round info, teams, scores (full-time & half-time), date/time, venue
-- [ ] Click a match to navigate to details
-- [ ] Show loading, empty, and error states
-- [ ] Write component tests
-
-**Estimated effort:** Medium
-**Dependencies:** Task 4.1
+- [x] Display all matches for a selected tournament
+- [x] Show round info, teams, scores (full-time & half-time), date/time, venue
+- [x] Click a match to navigate to details
+- [x] Show loading, empty, and error states
 
 ### Task 4.4 — Match Detail View
-- [ ] Display full match details (teams, score, scorers, venue, date, round, group)
-- [ ] Show goal events with minute, penalty/own-goal markers
-- [ ] "Back" navigation to matches list
-- [ ] Show loading, empty, and error states
-- [ ] Write component tests
-
-**Estimated effort:** Small
-**Dependencies:** Task 4.3
+- [x] Display full match details (teams, score, scorers, venue, date, round, group)
+- [x] Show goal events with minute, penalty/own-goal markers
+- [x] "Back" navigation to matches list
+- [x] Show loading, empty, and error states
 
 **Milestone (Phase 4):** Full dashboard functional locally
 
