@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/mkhevin/world-cup-dashboard/backend/internal/repository"
 )
@@ -28,5 +29,6 @@ func (s *YearService) GetAvailableYears(ctx context.Context) ([]int, error) {
 	if len(years) == 0 {
 		return nil, fmt.Errorf("no World Cup years found")
 	}
+	sort.Ints(years)
 	return years, nil
 }
