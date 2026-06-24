@@ -95,10 +95,14 @@
 ## Phase 5: Quality, Docker & Release
 
 ### Task 5.1 — Docker Compose Setup
-- [ ] Create backend `Dockerfile` (now that stack is known)
-- [ ] Create frontend `Dockerfile` (or static server)
-- [ ] Create `docker-compose.yml` wiring both services
-- [ ] Verify `docker compose up` boots all services locally
+- [x] Create backend `Dockerfile` (multi-stage Go build, 17.8MB image)
+- [x] Create frontend `Dockerfile` (multi-stage Node build + nginx, 61.8MB image)
+- [x] Create `docker-compose.yml` wiring both services
+- [x] Verify `docker compose up` boots all services locally
+  - `curl localhost:5173` → frontend HTML
+  - `curl localhost:8080/api/health` → `{"status":"ok"}`
+  - `curl localhost:5173/api/years` → 24 years
+  - `curl localhost:5173/api/tournaments/2018` → 64 matches
 
 **Estimated effort:** Small
 **Dependencies:** Tasks 3.1, 4.4
