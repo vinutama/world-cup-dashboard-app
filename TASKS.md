@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟡 Planned — Not yet implemented
+**Status:** 🟡 In progress — 6.1a deployed, 6.1b pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -206,13 +206,13 @@ Parse the openfootball/worldcup.json dataset to extract every goal event, scorin
 ## Phase 6.1 — Go Backend: Avalanche Endpoint & Parser
 
 ### Task 6.1a — Create `/api/v1/goal-avalanche` Endpoint
-- [ ] Create handler `GetGoalAvalanche` in `backend/internal/handler/`
-- [ ] Register route: `GET /api/v1/goal-avalanche?year=2018`
-- [ ] Handler calls `MatchService.GetMatches(ctx, year)` to get all matches for the requested year
-- [ ] Iterates through all matches, extracts every goal from each match's `goals1` and `goals2` arrays
-- [ ] Flattens into a unified list of `TimelineEvent` objects (see struct below)
-- [ ] Sorts the timeline by `MatchDay` (asc) then `Minute` (asc) — the "Avalanche" logic
-- [ ] Returns JSON array response
+- [x] Create handler `GetGoalAvalanche` in `backend/internal/handler/`
+- [x] Register route: `GET /api/v1/goal-avalanche?year=2018`
+- [x] Handler calls `MatchService.GetMatches(ctx, year)` to get all matches for the requested year
+- [x] Iterates through all matches, extracts every goal from each match's `goals1` and `goals2` arrays
+- [x] Flattens into a unified list of `TimelineEvent` objects (see struct below)
+- [x] Sorts the timeline by `MatchDay` (asc) then `Minute` (asc) — the "Avalanche" logic
+- [x] Returns JSON array response
 
 **Go struct:**
 ```go
