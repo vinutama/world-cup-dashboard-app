@@ -19,7 +19,7 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-slate-700/30 bg-slate-900/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-blue-800/30 bg-blue-950/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           {/* Brand */}
           <Link
@@ -42,7 +42,7 @@ export default function Layout({ children }: LayoutProps) {
                 className={`flex min-h-[44px] items-center rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
                   isActive(item.path, item.exact)
                     ? 'bg-blue-500/15 text-blue-400 shadow-sm'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    : 'text-slate-400 hover:bg-blue-900/70 hover:text-white'
                 }`}
               >
                 {item.label}
