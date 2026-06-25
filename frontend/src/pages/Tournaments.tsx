@@ -3,12 +3,19 @@ import { Link } from 'react-router-dom';
 import Dropdown from '../components/Dropdown';
 import type { Tournament } from '../types';
 
+const PER_PAGE = 9;
+
 export default function Tournaments() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [years, setYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedYear]);
 
   useEffect(() => {
     const params = selectedYear ? `?year=${selectedYear}` : '';
@@ -34,6 +41,9 @@ export default function Tournaments() {
       .catch(() => {});
   }, []);
 
+  const totalPages = Math.max(1, Math.ceil(tournaments.length / PER_PAGE));
+  const paginated = tournaments.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
   if (loading) return <div className="py-12 text-center text-slate-400">Loading tournaments...</div>;
   if (error) return <div className="py-12 text-center text-red-400">Error: {error}</div>;
 
@@ -51,12 +61,12 @@ export default function Tournaments() {
         />
       </div>
 
-      {tournaments.length === 0 && (
+      {paginated.length === 0 && (
         <p className="py-8 text-center text-slate-500">No tournaments found.</p>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {tournaments.map((t) => (
+        {paginated.map((t) => (
           <Link
             to={`/tournaments/${t.year}/matches`}
             key={t.year}
@@ -72,6 +82,28 @@ export default function Tournaments() {
           </Link>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="min-h-[44px] w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+          >
+            ← Previous
+          </button>
+          <span className="text-sm text-slate-400">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="min-h-[44px] w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

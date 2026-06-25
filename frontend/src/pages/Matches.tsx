@@ -11,7 +11,7 @@ export default function Matches() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(1);
-  const perPage = 10;
+  const perPage = 5;
 
   useEffect(() => {
     if (!id) return;
