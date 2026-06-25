@@ -1,61 +1,40 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import type { Match, PaginatedMatches } from '../types';
+import type { PaginatedMatches, MatchWithIndex } from '../types';
 
 type SortOrder = 'asc' | 'desc';
-
-interface MatchWithIndex {
-  match: Match;
-  originalIndex: number;
-}
 
 export default function Matches() {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialPage = parseInt(searchParams.get('page') ?? '1', 10) || 1;
-  const [allMatches, setAllMatches] = useState<Match[]>([]);
+  const [matches, setMatches] = useState<MatchWithIndex[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(initialPage);
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [totalPages, setTotalPages] = useState(1);
   const perPage = 5;
 
-  // Fetch ALL matches once instead of per-page
+  // Fetch paginated matches with backend sort
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    fetch(`/api/tournaments/${id}/matches?per_page=200&page=1`)
+    fetch(`/api/tournaments/${id}/matches?page=${page}&per_page=${perPage}&sort=${sortOrder}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch matches');
         return res.json() as Promise<PaginatedMatches>;
       })
       .then((data) => {
-        setAllMatches(data.matches);
+        setMatches(data.matches);
+        setTotalPages(data.total_pages);
         setLoading(false);
       })
       .catch((err: Error) => {
         setError(err.message);
         setLoading(false);
       });
-  }, [id]);
-
-  const totalPages = Math.max(1, Math.ceil(allMatches.length / perPage));
-
-  // Sort ALL matches globally, then paginate (not the other way around)
-  const displayMatches = useMemo(() => {
-    const withIndices: MatchWithIndex[] = allMatches.map((m, idx) => ({
-      match: m,
-      originalIndex: idx,
-    }));
-
-    const sorted = [...withIndices].sort((a, b) => {
-      const cmp = a.match.date.localeCompare(b.match.date);
-      return sortOrder === 'asc' ? cmp : -cmp;
-    });
-
-    const start = (page - 1) * perPage;
-    return sorted.slice(start, start + perPage);
-  }, [allMatches, page, sortOrder]);
+  }, [id, page, sortOrder]);
 
   const goToPage = (p: number) => {
     const clamped = Math.max(1, Math.min(p, totalPages));
@@ -102,13 +81,13 @@ export default function Matches() {
         </button>
       </div>
 
-      {displayMatches.length === 0 && (
+      {matches.length === 0 && (
         <p className="py-8 text-center text-slate-500">No matches found.</p>
       )}
 
       <div className="flex flex-col gap-3">
-        {displayMatches.map(({ match: m, originalIndex }) => {
-          const matchId = `${id}-${originalIndex}`;
+        {matches.map(({ match: m, original_index }) => {
+          const matchId = `${id}-${original_index}`;
           return (
             <Link
               to={`/matches/${matchId}`}
