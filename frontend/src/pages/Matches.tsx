@@ -34,60 +34,69 @@ export default function Matches() {
     setSearchParams({ page: p.toString() });
   };
 
-  if (loading) return <div className="loading">Loading matches...</div>;
-  if (error) return <div className="error">Error: {error}</div>;
+  if (loading) return <div className="py-12 text-center text-slate-400">Loading matches...</div>;
+  if (error) return <div className="py-12 text-center text-red-400">Error: {error}</div>;
 
   return (
-    <div className="matches-page">
-      <Link to="/tournaments" className="back-link">&larr; Back to Tournaments</Link>
-      <h1>World Cup {id} — Matches</h1>
+    <div>
+      <Link
+        to="/tournaments"
+        className="mb-4 inline-block text-sm text-slate-400 transition-colors hover:text-white"
+      >
+        ← Back to Tournaments
+      </Link>
+      <h1 className="mb-6 text-2xl font-bold text-white">World Cup {id} — Matches</h1>
 
-      {matches.length === 0 && <p className="empty">No matches found.</p>}
+      {matches.length === 0 && (
+        <p className="py-8 text-center text-slate-500">No matches found.</p>
+      )}
 
-      <div className="match-list">
+      <div className="flex flex-col gap-3">
         {matches.map((m, idx) => {
           const matchId = `${id}-${idx}`;
           return (
             <Link
               to={`/matches/${matchId}`}
               key={matchId}
-              className="match-card"
+              className="block rounded-xl border border-slate-700/50 bg-slate-800/80 p-4 transition-all hover:border-blue-500/50"
             >
-              <div className="match-info">
-                <span className="match-round">{m.round}</span>
-                <span className="match-date">{m.date}</span>
+              <div className="mb-2 flex gap-3 text-xs text-slate-500">
+                <span>{m.round}</span>
+                <span>{m.date}</span>
               </div>
-              <div className="match-teams">
-                <span className="team home">{m.team1}</span>
-                <span className="score">
+              <div className="flex items-center justify-center gap-4">
+                <span className="font-semibold text-white">{m.team1}</span>
+                <span className="font-mono text-xl font-bold text-blue-400">
                   {m.score.ft[0]} &ndash; {m.score.ft[1]}
                 </span>
-                <span className="team away">{m.team2}</span>
+                <span className="font-semibold text-white">{m.team2}</span>
               </div>
-              {m.ground && <div className="match-venue">{m.ground}</div>}
+              {m.ground && (
+                <div className="mt-2 text-center text-xs text-slate-500">{m.ground}</div>
+              )}
             </Link>
           );
         })}
       </div>
 
       {totalPages > 1 && (
-        <div className="pagination">
+        <div className="mt-8 flex items-center justify-center gap-4">
           <button
-            className="btn"
             onClick={() => goToPage(page - 1)}
             disabled={page <= 1}
+            className="rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            &larr; Previous
+            ← Previous
           </button>
-          <span className="page-info">
+          <span className="text-sm text-slate-400">
             Page {page} of {totalPages}
           </span>
           <button
-            className="btn"
             onClick={() => goToPage(page + 1)}
             disabled={page >= totalPages}
+            className="rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Next &rarr;
+            Next →
           </button>
         </div>
       )}

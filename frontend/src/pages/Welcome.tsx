@@ -2,17 +2,20 @@ import { Link } from 'react-router-dom';
 
 export default function Welcome() {
   return (
-    <div className="welcome">
-      <h1>FIFA World Cup Dashboard</h1>
-      <p>
-        Browse through every FIFA World Cup tournament from 1930 to today. 
+    <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
+      <h1 className="mb-4 text-4xl font-bold text-white md:text-5xl">
+        FIFA World Cup Dashboard
+      </h1>
+      <p className="mx-auto mb-8 max-w-lg text-lg text-slate-400">
+        Browse through every FIFA World Cup tournament from 1930 to today.
         View match results, goal scorers, and tournament details.
       </p>
-      <div className="cta">
-        <Link to="/tournaments" className="btn btn-primary">
-          Browse Tournaments
-        </Link>
-      </div>
+      <Link
+        to="/tournaments"
+        className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-blue-500 hover:scale-105 active:scale-95"
+      >
+        Browse Tournaments
+      </Link>
     </div>
   );
 }
