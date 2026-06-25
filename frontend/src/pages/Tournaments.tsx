@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import Dropdown from '../components/Dropdown';
 import type { Tournament } from '../types';
 
 export default function Tournaments() {
@@ -36,27 +37,18 @@ export default function Tournaments() {
   if (loading) return <div className="py-12 text-center text-slate-400">Loading tournaments...</div>;
   if (error) return <div className="py-12 text-center text-red-400">Error: {error}</div>;
 
+  const yearOptions = years.map((y) => ({ value: String(y), label: String(y) }));
+
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-white">World Cup Tournaments</h1>
-
-      <div className="mb-6 flex items-center gap-2">
-        <label htmlFor="year-filter" className="text-sm text-slate-400">
-          Filter by year:
-        </label>
-        <select
-          id="year-filter"
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-white">World Cup Tournaments</h1>
+        <Dropdown
+          label="Filter by year"
+          options={yearOptions}
           value={selectedYear}
-          onChange={(e) => setSelectedYear(e.target.value)}
-          className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm text-white outline-none focus:border-blue-500"
-        >
-          <option value="">All Years</option>
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
+          onChange={setSelectedYear}
+        />
       </div>
 
       {tournaments.length === 0 && (
@@ -68,13 +60,13 @@ export default function Tournaments() {
           <Link
             to={`/tournaments/${t.year}/matches`}
             key={t.year}
-            className="group rounded-xl border border-slate-700/50 bg-slate-800/80 p-5 transition-all hover:border-blue-500/50 hover:bg-slate-800"
+            className="group rounded-xl border border-slate-700/50 bg-slate-800/80 p-5 transition-all hover:-translate-y-0.5 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/5"
           >
-            <h2 className="mb-1 text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">
+            <h2 className="mb-1 text-lg font-semibold text-white transition-colors group-hover:text-blue-400">
               {t.name}
             </h2>
             <span className="text-sm text-slate-500">{t.year}</span>
-            <span className="mt-2 block text-xs font-medium text-blue-400">
+            <span className="mt-3 block text-xs font-medium text-blue-400">
               {t.matches?.length ?? 0} matches →
             </span>
           </Link>

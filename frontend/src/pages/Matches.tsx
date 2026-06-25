@@ -58,7 +58,7 @@ export default function Matches() {
             <Link
               to={`/matches/${matchId}`}
               key={matchId}
-              className="block rounded-xl border border-slate-700/50 bg-slate-800/80 p-4 transition-all hover:border-blue-500/50"
+              className="block rounded-xl border border-slate-700/50 bg-slate-800/80 p-4 transition-all hover:-translate-y-0.5 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/5"
             >
               <div className="mb-2 flex gap-3 text-xs text-slate-500">
                 <span>{m.round}</span>
