@@ -1,7 +1,9 @@
 {
   "name": "world-cup-dashboard",
   "private": true,
-  "workspaces": ["frontend"],
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w frontend\" \"cd backend && go run ./src/server.go\"",
     "dev:frontend": "npm run dev -w frontend",
@@ -15,5 +17,8 @@
   "devDependencies": {
     "concurrently": "^9.0.0",
     "prettier": "^3.4.0"
+  },
+  "dependencies": {
+    "openrtk": "^0.1.0"
   }
 }
