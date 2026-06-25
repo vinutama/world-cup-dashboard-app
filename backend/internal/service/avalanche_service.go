@@ -25,33 +25,43 @@ func (s *MatchService) GetGoalAvalanche(ctx context.Context, year int) ([]model.
 
 	for matchIdx, m := range matches {
 		matchID := fmt.Sprintf("%d-%d", year, matchIdx)
+
+		// Combine goals from both teams and sort by effective minute
+		// so current_score is computed in true chronological order.
+		type scoredGoal struct {
+			goal       model.Goal
+			isTeam1    bool
+		}
+		allGoals := make([]scoredGoal, 0, len(m.Goals1)+len(m.Goals2))
+		for _, g := range m.Goals1 {
+			allGoals = append(allGoals, scoredGoal{goal: g, isTeam1: true})
+		}
+		for _, g := range m.Goals2 {
+			allGoals = append(allGoals, scoredGoal{goal: g, isTeam1: false})
+		}
+		sort.Slice(allGoals, func(i, j int) bool {
+			return effectiveMinute(allGoals[i].goal) < effectiveMinute(allGoals[j].goal)
+		})
+
 		team1Goals := 0
 		team2Goals := 0
-
-		for _, g := range m.Goals1 {
-			team1Goals++
+		for _, sg := range allGoals {
+			if sg.isTeam1 {
+				team1Goals++
+			} else {
+				team2Goals++
+			}
+			teamScored := m.Team2
+			if sg.isTeam1 {
+				teamScored = m.Team1
+			}
 			events = append(events, model.TimelineEvent{
 				MatchID:      matchID,
 				TeamA:        m.Team1,
 				TeamB:        m.Team2,
-				Scorer:       scorerName(g),
-				TeamScored:   m.Team1,
-				Minute:       effectiveMinute(g),
-				MatchDay:     matchDays[matchIdx],
-				CurrentScore: fmt.Sprintf("%d-%d", team1Goals, team2Goals),
-				IsClustered:  false,
-			})
-		}
-
-		for _, g := range m.Goals2 {
-			team2Goals++
-			events = append(events, model.TimelineEvent{
-				MatchID:      matchID,
-				TeamA:        m.Team1,
-				TeamB:        m.Team2,
-				Scorer:       scorerName(g),
-				TeamScored:   m.Team2,
-				Minute:       effectiveMinute(g),
+				Scorer:       scorerName(sg.goal),
+				TeamScored:   teamScored,
+				Minute:       effectiveMinute(sg.goal),
 				MatchDay:     matchDays[matchIdx],
 				CurrentScore: fmt.Sprintf("%d-%d", team1Goals, team2Goals),
 				IsClustered:  false,
