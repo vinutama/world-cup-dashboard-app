@@ -46,27 +46,33 @@ export default function MatchDetail() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl px-0 sm:px-0">
       <Link
         to={`/tournaments/${year}/matches`}
-        className="mb-4 inline-block text-sm text-slate-400 transition-colors hover:text-white"
+        className="mb-4 inline-flex min-h-[44px] items-center text-sm text-slate-400 transition-colors hover:text-white"
       >
         ← Back to Matches
       </Link>
 
-      <h1 className="mb-6 text-2xl font-bold text-white">
+      <h1 className="mb-6 text-xl font-bold text-white md:text-2xl">
         {match.team1} vs {match.team2}
       </h1>
 
-      <div className="mb-6 flex items-center justify-center gap-8 rounded-xl border border-slate-700/50 bg-slate-800/80 p-8">
-        <span className="text-lg font-bold text-white">{match.team1}</span>
-        <span className="font-mono text-3xl font-bold text-blue-400">
+      {/* Score display */}
+      <div className="mb-6 flex items-center justify-center gap-3 rounded-xl border border-slate-700/50 bg-slate-800/80 p-4 md:gap-8 md:p-8">
+        <span className="flex-1 truncate text-right text-sm font-bold text-white md:text-lg">
+          {match.team1}
+        </span>
+        <span className="shrink-0 font-mono text-xl font-bold text-blue-400 md:text-3xl">
           {match.score.ft[0]} &ndash; {match.score.ft[1]}
         </span>
-        <span className="text-lg font-bold text-white">{match.team2}</span>
+        <span className="flex-1 truncate text-left text-sm font-bold text-white md:text-lg">
+          {match.team2}
+        </span>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl border border-slate-700/50 bg-slate-800/80 p-4">
+      {/* Match meta */}
+      <div className="mb-6 grid grid-cols-1 gap-2 rounded-xl border border-slate-700/50 bg-slate-800/80 p-4 sm:grid-cols-2">
         {match.date && (
           <p className="text-sm text-slate-300">
             <span className="text-slate-500">Date:</span> {match.date}
@@ -98,6 +104,7 @@ export default function MatchDetail() {
         </p>
       </div>
 
+      {/* Goals */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {renderGoals(match.goals1, match.team1)}
         {renderGoals(match.goals2, match.team2)}
