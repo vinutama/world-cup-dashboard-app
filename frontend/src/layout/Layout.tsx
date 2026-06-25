@@ -1,27 +1,62 @@
 import { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
+const navItems = [
+  { path: '/', label: 'Home', exact: true },
+  { path: '/tournaments', label: 'Tournaments' },
+];
+
 export default function Layout({ children }: LayoutProps) {
+  const { pathname } = useLocation();
+
+  const isActive = (path: string, exact?: boolean) =>
+    exact ? pathname === path : pathname.startsWith(path);
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-4">
-      <header className="mb-8 flex items-center justify-between border-b border-slate-700/50 pb-4">
-        <Link to="/" className="text-lg font-bold text-white hover:text-blue-400 transition-colors">
-          ⚽ World Cup Dashboard
-        </Link>
-        <nav>
+    <div className="min-h-screen bg-slate-900">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-slate-700/30 bg-slate-900/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+          {/* Brand */}
           <Link
-            to="/tournaments"
-            className="ml-4 text-sm text-slate-400 hover:text-white transition-colors"
+            to="/"
+            className="flex items-center gap-2 text-lg font-extrabold text-white transition-colors hover:text-blue-400"
           >
-            Tournaments
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-sm shadow-lg shadow-blue-500/20">
+              ⚽
+            </span>
+            <span className="hidden sm:inline">World Cup Dashboard</span>
+            <span className="sm:hidden">WC</span>
           </Link>
-        </nav>
+
+          {/* Nav */}
+          <nav className="flex items-center gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+                  isActive(item.path, item.exact)
+                    ? 'bg-blue-500/15 text-blue-400 shadow-sm'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {/* Accent line */}
+        <div className="h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
       </header>
-      <main>{children}</main>
+
+      {/* Content */}
+      <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
     </div>
   );
 }
