@@ -29,6 +29,26 @@ test.describe('World Cup Dashboard', () => {
     expect(await matches.count()).toBeLessThanOrEqual(5);
   });
 
+  test('match links on page 1 and 2 point to correct indices', async ({ page }) => {
+    await page.goto('/tournaments/2018/matches');
+    await page.waitForSelector('a[href^="/matches/2018-"]', { timeout: 10000 });
+
+    // Page 1 first link should be /matches/2018-0
+    await expect(page.locator('a[href^="/matches/2018-"]').first()).toHaveAttribute('href', '/matches/2018-0');
+
+    // Go to page 2
+    await page.getByRole('button', { name: /next/i }).click();
+    await page.waitForTimeout(300);
+
+    // Page 2 first link should be /matches/2018-5 (not /matches/2018-0)
+    const page2Links = page.locator('a[href^="/matches/2018-"]');
+    await expect(page2Links.first()).toHaveAttribute('href', '/matches/2018-5');
+
+    // Click it and verify we land on the right detail page
+    await page2Links.first().click();
+    await expect(page).toHaveURL('/matches/2018-5');
+  });
+
   test('pagination on matches page', async ({ page }) => {
     await page.goto('/tournaments/2018/matches?page=2');
     await page.waitForSelector('a[href^="/matches/2018-"]', { timeout: 10000 });
