@@ -48,7 +48,7 @@ export default function Dropdown({ label, options, value, onChange }: DropdownPr
       </button>
 
       {open && (
-        <div className="absolute left-0 z-50 mt-1 w-48 rounded-lg border border-slate-600 bg-slate-800 py-1 shadow-lg">
+        <div className="absolute left-0 z-50 mt-1 max-h-60 w-48 overflow-y-auto rounded-lg border border-slate-600 bg-slate-800 py-1 shadow-lg">
           <button
             onClick={() => {
               onChange('');
