@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import type { Match, PaginatedMatches } from '../types';
+
+type SortOrder = 'asc' | 'desc';
 
 export default function Matches() {
   const { id } = useParams<{ id: string }>();
@@ -11,6 +13,7 @@ export default function Matches() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(1);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const perPage = 5;
 
   useEffect(() => {
@@ -29,10 +32,17 @@ export default function Matches() {
       .finally(() => setLoading(false));
   }, [id, page]);
 
+  const sorted = useMemo(() => {
+    if (sortOrder === 'desc') return [...matches].reverse();
+    return matches;
+  }, [matches, sortOrder]);
+
   const goToPage = (p: number) => {
     setPage(p);
     setSearchParams({ page: p.toString() });
   };
+
+  const toggleSort = () => setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'));
 
   if (loading) return <div className="py-12 text-center text-slate-400">Loading matches...</div>;
   if (error) return <div className="py-12 text-center text-red-400">Error: {error}</div>;
@@ -45,15 +55,36 @@ export default function Matches() {
       >
         ← Back to Tournaments
       </Link>
-      <h1 className="mb-6 text-xl font-bold text-white md:text-2xl">World Cup {id} — Matches</h1>
 
-      {matches.length === 0 && (
+      <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold text-white md:text-2xl">World Cup {id} — Matches</h1>
+
+        <button
+          onClick={toggleSort}
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
+          title={sortOrder === 'asc' ? 'Sorted ascending — click to sort descending' : 'Sorted descending — click to sort ascending'}
+        >
+          <svg
+            className={`h-4 w-4 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+          </svg>
+          <span className="hidden sm:inline">Date</span>
+        </button>
+      </div>
+
+      {sorted.length === 0 && (
         <p className="py-8 text-center text-slate-500">No matches found.</p>
       )}
 
       <div className="flex flex-col gap-3">
-        {matches.map((m, idx) => {
-          const matchId = `${id}-${idx}`;
+        {sorted.map((m, idx) => {
+          const matchOriginalIndex = (page - 1) * perPage + idx;
+          const matchId = `${id}-${matchOriginalIndex}`;
           return (
             <Link
               to={`/matches/${matchId}`}
