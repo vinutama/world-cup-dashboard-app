@@ -121,7 +121,16 @@ func (h *Handler) GetTournament(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tournaments[0])
 }
 
+// matchResponse pairs a match with its position in the sorted full match array.
+// The original_index is the 0-based index in the sorted array, used by the frontend
+// to construct correct match detail links (e.g. /matches/2018-5).
+type matchResponse struct {
+	Match         model.Match `json:"match"`
+	OriginalIndex int         `json:"original_index"`
+}
+
 // GetTournamentMatches returns paginated matches for a tournament.
+// Supports ?sort=asc|desc to control sort order (default asc).
 func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	year, err := strconv.Atoi(id)
@@ -131,12 +140,21 @@ func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page, perPage := parsePaginationParams(r)
+	sortOrder := r.URL.Query().Get("sort")
 
 	allMatches, err := h.matchSvc.GetMatches(r.Context(), year)
 	if err != nil {
 		h.logger.Error("failed to get matches", "year", year, "error", err)
 		writeError(w, http.StatusNotFound, "tournament not found")
 		return
+	}
+
+	// Sort by date — allMatches is already sorted ascending from the cache,
+	// so we only need to reverse for descending order
+	if sortOrder == "desc" {
+		for i, j := 0, len(allMatches)-1; i < j; i, j = i+1, j-1 {
+			allMatches[i], allMatches[j] = allMatches[j], allMatches[i]
+		}
 	}
 
 	total := len(allMatches)
@@ -163,8 +181,18 @@ func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 		end = total
 	}
 
+	// Build the response with original_index for each match
+	matches := make([]matchResponse, 0, end-start)
+	for i, m := range allMatches[start:end] {
+		originalIndex := start + i
+		matches = append(matches, matchResponse{
+			Match:         m,
+			OriginalIndex: originalIndex,
+		})
+	}
+
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"matches":     allMatches[start:end],
+		"matches":     matches,
 		"page":        page,
 		"per_page":    perPage,
 		"total":       total,

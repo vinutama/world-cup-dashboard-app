@@ -31,9 +31,14 @@ export interface Tournament {
 }
 
 export interface PaginatedMatches {
-  matches: Match[];
+  matches: MatchWithIndex[];
   page: number;
   per_page: number;
   total: number;
   total_pages: number;
+}
+
+export interface MatchWithIndex {
+  match: Match;
+  original_index: number;
 }
