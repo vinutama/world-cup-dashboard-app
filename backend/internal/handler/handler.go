@@ -23,6 +23,7 @@ type MatchService interface {
 	GetTournamentsByYear(ctx context.Context, year int) ([]*model.Tournament, error)
 	GetMatches(ctx context.Context, year int) ([]model.Match, error)
 	GetMatch(ctx context.Context, year, idx int) (*model.Match, error)
+	GetGoalAvalanche(ctx context.Context, year int) ([]model.TimelineEvent, error)
 }
 
 // Handler groups all HTTP handlers and their dependencies.
@@ -48,6 +49,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/tournaments/{id}", h.GetTournament)
 	mux.HandleFunc("GET /api/tournaments/{id}/matches", h.GetTournamentMatches)
 	mux.HandleFunc("GET /api/matches/{id}", h.GetMatch)
+	mux.HandleFunc("GET /api/v1/goal-avalanche", h.GetGoalAvalanche)
 }
 
 // Health responds with service status.
@@ -246,6 +248,30 @@ func (h *Handler) GetMatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, match)
+}
+
+// GetGoalAvalanche returns a sorted timeline of all goal events for a year.
+func (h *Handler) GetGoalAvalanche(w http.ResponseWriter, r *http.Request) {
+	yearStr := r.URL.Query().Get("year")
+	if yearStr == "" {
+		writeError(w, http.StatusBadRequest, "missing required query parameter: year")
+		return
+	}
+
+	year, err := strconv.Atoi(yearStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "year must be a number")
+		return
+	}
+
+	events, err := h.matchSvc.GetGoalAvalanche(r.Context(), year)
+	if err != nil {
+		h.logger.Error("failed to get goal avalanche", "year", year, "error", err)
+		writeError(w, http.StatusNotFound, "tournament not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, events)
 }
 
 // writeJSON sends a JSON response with the given status code.
