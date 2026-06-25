@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟡 In progress — 6.1a deployed, 6.1b pending
+**Status:** 🟢 6.1a & 6.1b deployed — 6.1c (Chaos Zone) pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -233,10 +233,10 @@ type TimelineEvent struct {
 **Dependencies:** Phase 3 (Backend API & caching)
 
 ### Task 6.1b — Match Day Computation
-- [ ] Derive `match_day` from match dates: first match of the tournament = day 1, subsequent days increment by 1 per unique calendar date
-- [ ] Compute `current_score` by scanning through goals in chronological match order and building up score state
-- [ ] Handle goal events beyond 90 minutes (injury time / extra time) — store raw minute from JSON
-- [ ] Write Go unit tests for the parser (3+ test cases covering: empty matches, single goal, multi-goal match, extra time goals)
+- [x] Derive `match_day` from match dates: first match of the tournament = day 1, subsequent days increment by 1 per unique calendar date
+- [x] Compute `current_score` by scanning through goals in chronological match order and building up score state
+- [x] Handle goal events beyond 90 minutes (injury time / extra time) — effectiveMinute combines minute + offset
+- [x] Write Go unit tests for the parser (5 tests: empty, single goal, multi-goal non-chronological, interleaved teams, injury time)
 
 **Estimated effort:** Medium
 **Dependencies:** Task 6.1a
