@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import type { Match, Goal } from '../types';
 
 export default function MatchDetail() {
-  const { id } = useParams();
-  const [match, setMatch] = useState(null);
+  const { id } = useParams<{ id: string }>();
+  const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) return;
     fetch(`/api/matches/${id}`)
       .then((res) => {
         if (!res.ok) throw new Error('Match not found');
-        return res.json();
+        return res.json() as Promise<Match>;
       })
       .then(setMatch)
-      .catch((err) => setError(err.message))
+      .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -23,9 +25,9 @@ export default function MatchDetail() {
   if (!match) return <div className="empty">Match not found.</div>;
 
   // Extract year from match id (e.g., "2018-5" → year=2018)
-  const year = id.split('-')[0];
+  const year = id?.split('-')[0] ?? '';
 
-  const renderGoals = (goals, teamName) => {
+  const renderGoals = (goals: Goal[] | null | undefined, teamName: string) => {
     if (!goals || goals.length === 0) return null;
     return (
       <div className="goals-list">

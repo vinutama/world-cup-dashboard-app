@@ -1,25 +1,26 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import type { Tournament } from '../types';
 
 export default function Tournaments() {
-  const [tournaments, setTournaments] = useState([]);
-  const [years, setYears] = useState([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [years, setYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const params = selectedYear ? `?year=${selectedYear}` : '';
     fetch(`/api/tournaments${params}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch tournaments');
-        return res.json();
+        return res.json() as Promise<Tournament[]>;
       })
       .then((data) => {
         setTournaments(data);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         setError(err.message);
         setLoading(false);
       });
@@ -27,7 +28,7 @@ export default function Tournaments() {
 
   useEffect(() => {
     fetch('/api/years')
-      .then((res) => res.json())
+      .then((res) => res.json() as Promise<number[]>)
       .then(setYears)
       .catch(() => {});
   }, []);
