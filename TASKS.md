@@ -186,6 +186,220 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
  │              └─ 5.1 Docker Compose
  │                   └─ 5.2 E2E Testing
  │
-5.3 Self-Review & Bug Fixes (static analysis, security, perf, UX)
- └─ 5.4 Documentation & Release (CI finalized, README, tag)
+---
+**Phase 5 (Self-Review & Release):** Self-review pass completed. Bug fixes deployed during earlier loops (header polish, pagination, sort, URL-index fix). Full release tasks pending.
+
+---
+
+# Phase 6: Goal Avalanche Timeline (Feature Extension)
+
+## 🎯 Objective
+Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
+
+**Status:** 🟡 Planned — Not yet implemented
+**Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
+
+> **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
+
+---
+
+## Phase 6.1 — Go Backend: Avalanche Endpoint & Parser
+
+### Task 6.1a — Create `/api/v1/goal-avalanche` Endpoint
+- [ ] Create handler `GetGoalAvalanche` in `backend/internal/handler/`
+- [ ] Register route: `GET /api/v1/goal-avalanche?year=2018`
+- [ ] Handler calls `MatchService.GetMatches(ctx, year)` to get all matches for the requested year
+- [ ] Iterates through all matches, extracts every goal from each match's `goals1` and `goals2` arrays
+- [ ] Flattens into a unified list of `TimelineEvent` objects (see struct below)
+- [ ] Sorts the timeline by `MatchDay` (asc) then `Minute` (asc) — the "Avalanche" logic
+- [ ] Returns JSON array response
+
+**Go struct:**
+```go
+type TimelineEvent struct {
+    MatchID      string `json:"match_id"`       // e.g. "2018-0"
+    TeamA        string `json:"team_a"`         // home team name
+    TeamB        string `json:"team_b"`         // away team name
+    Scorer       string `json:"scorer"`         // player name, possibly "N/A"
+    TeamScored   string `json:"team_scored"`    // which team scored
+    Minute       int    `json:"minute"`         // match minute of the goal
+    MatchDay     int    `json:"match_day"`      // tournament day (1-indexed from the first match's date)
+    CurrentScore string `json:"current_score"`  // score state after this goal (e.g. "2-1")
+    IsClustered  bool   `json:"is_clustered"`   // whether multiple goals happened near this minute/day
+}
+```
+
+**Estimated effort:** Medium
+**Dependencies:** Phase 3 (Backend API & caching)
+
+### Task 6.1b — Match Day Computation
+- [ ] Derive `match_day` from match dates: first match of the tournament = day 1, subsequent days increment by 1 per unique calendar date
+- [ ] Compute `current_score` by scanning through goals in chronological match order and building up score state
+- [ ] Handle goal events beyond 90 minutes (injury time / extra time) — store raw minute from JSON
+- [ ] Write Go unit tests for the parser (3+ test cases covering: empty matches, single goal, multi-goal match, extra time goals)
+
+**Estimated effort:** Medium
+**Dependencies:** Task 6.1a
+
+### Task 6.1c — Chaos Zone Detection
+- [ ] Write a function that scans the sorted timeline and detects "Chaos Zones"
+- [ ] **Chaos Zone definition:** Windows where multiple goals are scored across *different* simultaneous matches within a short real-world timeframe (≤3 minutes apart on the same match day)
+- [ ] Mark matching `TimelineEvent` entries with `isClustered = true`
+- [ ] Return timeline grouped by `Match Day` → `map[int][]TimelineEvent` so the frontend receives a clean, categorized structure
+
+**Estimated effort:** Small
+**Dependencies:** Task 6.1b
+
+**Milestone (Phase 6.1):** Backend serves structured avalanche timeline JSON per tournament year.
+
+---
+
+## Phase 6.2 — TypeScript Types & Frontend Layout Skeleton
+
+### Task 6.2a — TypeScript Interfaces
+- [ ] Define matching TS interfaces in `frontend/src/types/goalAvalanche.ts`:
+
+```ts
+interface TimelineEvent {
+  matchId: string;
+  teamA: string;
+  teamB: string;
+  scorer: string;
+  teamScored: string;
+  minute: number;
+  matchDay: number;
+  currentScore: string;
+  isClustered: boolean;
+}
+
+interface GoalAvalancheResponse {
+  year: number;
+  eventsByDay: Record<number, TimelineEvent[]>;
+}
+```
+
+**Estimated effort:** Small
+**Dependencies:** Task 6.1c
+
+### Task 6.2b — GoalAvalanche Component Skeleton
+- [ ] Create `frontend/src/pages/GoalAvalanche.tsx`
+- [ ] Add route: `GET /goal-avalanche/:year` in router config
+- [ ] Fetch data from `/api/v1/goal-avalanche?year=:year`
+- [ ] Render match day as a section header with `text-2xl font-bold text-cyan-300`
+- [ ] Style a central glowing vertical line: `border-l-2 border-dashed border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)]`
+- [ ] Design glassmorphic goal cards: `bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-xl`
+- [ ] Show loading, empty, and error states
+
+**Estimated effort:** Medium
+**Dependencies:** Task 6.2a
+
+**Milestone (Phase 6.2):** Goal avalanche timeline renders static data.
+
+---
+
+## Phase 6.3 — Micro-Interactions & Expansion Cards
+
+### Task 6.3a — Expandable Detail View
+- [ ] Add React state (`expandedId: string | null`) to track which card is expanded
+- [ ] On click of a goal card: toggle expanded view
+- [ ] When expanded, reveal:
+  - Final match result (teams + full-time score)
+  - Tournament stage/round
+  - Stylized timeline track showing how late in the game the goal occurred (visual bar from 0' to 120' with a marker at the goal minute)
+- [ ] Animate expand/collapse with `transition-all duration-300`
+
+**Estimated effort:** Medium
+**Dependencies:** Task 6.2b
+
+### Task 6.3b — Chaos Zone Badge
+- [ ] For cards flagged `isClustered`: render a pulsing red badge/dot
+- [ ] Style: `animate-pulse bg-red-500 rounded-full h-2 w-2` positioned at the top-right of the card
+- [ ] Tooltip on hover: "Chaos Zone — multiple goals in a short window"
+
+**Estimated effort:** Small
+**Dependencies:** Task 6.3a
+
+---
+
+## Phase 6.4 — Cinematic Scrolling & Polish
+
+### Task 6.4a — Intersection Observer Animations
+- [ ] Implement custom `useInView` hook (or use a lightweight utility) that triggers when cards enter the viewport
+- [ ] Cards fade + slide up on entry: `transition-all duration-500 ease-in-out opacity-0 translate-y-8` → `opacity-100 translate-y-0`
+- [ ] Stagger animation delay for adjacent cards (50ms per card)
+
+**Estimated effort:** Medium
+**Dependencies:** Task 6.3b
+
+### Task 6.4b — Sticky Progress Bar
+- [ ] Add a sticky top progress bar tracking scroll position through the timeline
+- [ ] Data attribute on each `match_day` section to calculate completion %
+- [ ] Style: `h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 fixed top-0 left-0 transition-all duration-150`
+- [ ] Current match day label updates as user scrolls
+
+**Estimated effort:** Small
+**Dependencies:** Task 6.4a
+
+### Task 6.4c — Year Navigation
+- [ ] Add a year selector at the top of the Goal Avalanche page similar to the tournaments dropdown
+- [ ] Navigating to a different year fetches fresh avalanche data for that year
+- [ ] URL updates to `/goal-avalanche/:year`
+
+**Estimated effort:** Small
+**Dependencies:** Task 6.4b
+
+---
+
+## Phase 6.5 — QA, Review & Documentation
+
+- [ ] Playwright E2E tests for Goal Avalanche page (3 tests):
+  1. Page loads and renders timeline for 2018
+  2. Year navigation works (switch between years)
+  3. Chaos Zone badge appears for clustered goals
+- [ ] Backend Go unit tests for the avalanche handler + parser (5+ tests)
+- [ ] UX walkthrough: manual scroll through timeline, verification of expanding cards
+- [ ] Update TASKS.md after each completion
+
+**Estimated effort:** Medium
+**Dependencies:** All prior Phase 6 tasks
+
+---
+
+## Updated Task Dependency Graph
+
+```
+1.1 Scaffolding
+ │
+ ├─ 2.1a Year Discovery
+ │    └─ 2.1b Per-Year Fetcher
+ │         └─ 3.1 Backend API (CORS, logging, health, /years, /tournaments, /matches)
+ │              ├─ 4.1 App Shell (welcome, router, error boundary, 404)
+ │              │    ├─ 4.2 Tournaments List
+ │              │    ├─ 4.3 Matches Browse
+ │              │    │    └─ 4.4 Match Detail
+ │              │    └─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+ │              └─ 5.1 Docker Compose
+ │                   └─ 5.2 E2E Testing
+ │
+5.3 Self-Review & Bug Fixes
+ └─ 5.4 Documentation & Release
+ │
+ └─ 6.1a Avalanche Endpoint ── 6.1b Match Day Computation ── 6.1c Chaos Zones
+      │                              │                              │
+      └──────────────────────────────┴──────────────────────────────┘
+                                    │
+                              6.2a TS Types
+                                    │
+                              6.2b Component Skeleton
+                                    │
+                              6.3a Expandable Detail ── 6.3b Chaos Badge
+                                    │                              │
+                                    └──────────────────────────────┘
+                                    │
+                              6.4a Observer Animations ── 6.4b Progress Bar ── 6.4c Year Nav
+                                    │                              │              │
+                                    └──────────────────────────────┴──────────────┘
+                                    │
+                              6.5 QA, Review & Documentation
+
 ```

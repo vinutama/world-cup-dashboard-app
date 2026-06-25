@@ -8,6 +8,7 @@ Build a local-only MVP dashboard that allows users to:
 - Filter by year
 - Browse matches
 - View match details
+- Explore a cinematic "Goal Avalanche" timeline of every goal scored
 
 Data source:
 
@@ -55,6 +56,19 @@ For every task:
 
 ---
 
+# Feature Extensions (Post-MVP)
+
+After MVP completion, the following extensions are planned:
+
+- **Phase 6 — Goal Avalanche Timeline:** A new Go backend endpoint (`/api/v1/goal-avalanche`) that parses worldcup.json to extract every goal into a structured timeline. A React + Tailwind frontend renders a cinematic dark-mode vertical timeline with:
+  - Chronological goal cards grouped by match day
+  - Expandable detail views (match result, stage, minute track)
+  - "Chaos Zone" detection for multiple goals scored simultaneously
+  - Intersection Observer scroll animations
+  - Sticky progress bar tracking scroll depth
+
+---
+
 # Success Criteria
 
 Functional:
@@ -62,6 +76,7 @@ Functional:
 - User can browse all World Cups
 - User can filter by year
 - User can view match details
+- User can explore the Goal Avalanche timeline for any tournament
 
 Engineering:
 
