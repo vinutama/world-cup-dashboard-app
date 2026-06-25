@@ -1,6 +1,11 @@
+import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-export default function Layout({ children }) {
+interface LayoutProps {
+  children: ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
   return (
     <div className="app-layout">
       <header className="app-header">
