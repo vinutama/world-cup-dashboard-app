@@ -41,8 +41,8 @@ export default function Tournaments() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-white">World Cup Tournaments</h1>
+      <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold text-white md:text-2xl">World Cup Tournaments</h1>
         <Dropdown
           label="Filter by year"
           options={yearOptions}

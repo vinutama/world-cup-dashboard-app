@@ -39,7 +39,7 @@ export default function Layout({ children }: LayoutProps) {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+                className={`flex min-h-[44px] items-center rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
                   isActive(item.path, item.exact)
                     ? 'bg-blue-500/15 text-blue-400 shadow-sm'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -56,7 +56,7 @@ export default function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Content */}
-      <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">{children}</main>
     </div>
   );
 }
