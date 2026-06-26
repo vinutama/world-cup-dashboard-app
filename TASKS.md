@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟡 6.2a deployed — 6.2b & 6.2c pending
+**Status:** 🟡 6.2b deployed — 6.2c (Timeline component) pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -268,13 +268,14 @@ type TimelineEvent struct {
 **Dependencies:** Task 6.1c
 
 ### Task 6.2b — GoalAvalanche Component Skeleton
-- [ ] Create `frontend/src/pages/GoalAvalanche.tsx`
-- [ ] Add route: `GET /goal-avalanche/:year` in router config
-- [ ] Fetch data from `/api/v1/goal-avalanche?year=:year`
-- [ ] Render match day as a section header with `text-2xl font-bold text-cyan-300`
-- [ ] Style a central glowing vertical line: `border-l-2 border-dashed border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)]`
-- [ ] Design glassmorphic goal cards: `bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-xl`
-- [ ] Show loading, empty, and error states
+- [x] Create `frontend/src/pages/GoalAvalanche.tsx`
+- [x] Add route: `/goal-avalanche/:year` in `App.tsx` (also `/goal-avalanche` defaults to 2018)
+- [x] Fetch data from `/api/v1/goal-avalanche?year=:year`
+- [x] Render match day as a section header with `text-2xl font-bold text-cyan-300`
+- [x] Style a central glowing vertical line: `border-l-2 border-dashed border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)]`
+- [x] Design glassmorphic goal cards: `bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-xl`
+- [x] Show loading, empty, and error states
+- [x] Chaos zone visual indicator: orange glow + "CHAOS" badge
 
 **Estimated effort:** Medium
 **Dependencies:** Task 6.2a
