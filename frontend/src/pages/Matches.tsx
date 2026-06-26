@@ -8,11 +8,12 @@ export default function Matches() {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialPage = parseInt(searchParams.get('page') ?? '1', 10) || 1;
+  const initialSort = (searchParams.get('sort') as SortOrder) ?? 'asc';
   const [matches, setMatches] = useState<MatchWithIndex[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(initialPage);
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [sortOrder, setSortOrder] = useState<SortOrder>(initialSort);
   const [totalPages, setTotalPages] = useState(1);
   const perPage = 5;
 
@@ -39,13 +40,21 @@ export default function Matches() {
   const goToPage = (p: number) => {
     const clamped = Math.max(1, Math.min(p, totalPages));
     setPage(clamped);
-    setSearchParams({ page: clamped.toString() });
+    setSearchParams((prev) => {
+      prev.set('page', clamped.toString());
+      return prev;
+    });
   };
 
   const toggleSort = () => {
-    setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'));
+    const next = sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(next);
     setPage(1);
-    setSearchParams({ page: '1' });
+    setSearchParams((prev) => {
+      prev.set('page', '1');
+      prev.set('sort', next);
+      return prev;
+    });
   };
 
   if (loading) return <div className="py-12 text-center text-slate-400">Loading matches...</div>;
