@@ -19,16 +19,16 @@ type rawTournament struct {
 }
 
 type rawMatch struct {
-	Round  string   `json:"round"`
-	Date   string   `json:"date"`
-	Time   string   `json:"time,omitempty"`
-	Team1  string   `json:"team1"`
-	Team2  string   `json:"team2"`
-	Score  rawScore `json:"score"`
+	Round  string    `json:"round"`
+	Date   string    `json:"date"`
+	Time   string    `json:"time,omitempty"`
+	Team1  string    `json:"team1"`
+	Team2  string    `json:"team2"`
+	Score  rawScore  `json:"score"`
 	Goals1 []rawGoal `json:"goals1,omitempty"`
 	Goals2 []rawGoal `json:"goals2,omitempty"`
-	Group  string   `json:"group,omitempty"`
-	Ground string   `json:"ground,omitempty"`
+	Group  string    `json:"group,omitempty"`
+	Ground string    `json:"ground,omitempty"`
 }
 
 type rawScore struct {
@@ -46,7 +46,7 @@ type rawGoal struct {
 
 // MatchRepo fetches World Cup match data from the openfootball GitHub repository.
 type MatchRepo struct {
-	Client *http.Client
+	Client  *http.Client
 	URLTmpl string // fmt template with %d for year, e.g. ".../%d/worldcup.json"
 }
 

@@ -44,10 +44,14 @@ export default function Tournaments() {
   const totalPages = Math.max(1, Math.ceil(tournaments.length / PER_PAGE));
   const paginated = tournaments.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  if (loading) return <div className="py-12 text-center text-slate-400">Loading tournaments...</div>;
+  if (loading)
+    return <div className="py-12 text-center text-slate-400">Loading tournaments...</div>;
   if (error) return <div className="py-12 text-center text-red-400">Error: {error}</div>;
 
-  const yearOptions = years.slice().reverse().map((y) => ({ value: String(y), label: String(y) }));
+  const yearOptions = years
+    .slice()
+    .reverse()
+    .map((y) => ({ value: String(y), label: String(y) }));
 
   return (
     <div>

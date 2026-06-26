@@ -142,9 +142,9 @@ func TestGetGoalAvalanche_NonChronologicalJSONSortsCorrectly(t *testing.T) {
 
 	// After sort by minute: 12, 43, 71, 91, 94
 	expected := []struct {
-		minute  int
-		score   string
-		scorer  string
+		minute int
+		score  string
+		scorer string
 	}{
 		{12, "1-0", "Gazinsky"},
 		{43, "2-0", "Cheryshev"},
@@ -216,10 +216,10 @@ func TestGetGoalAvalanche_InterleavedTeams(t *testing.T) {
 	}
 
 	expected := []struct {
-		minute  int
-		score   string
-		scorer  string
-		team    string
+		minute int
+		score  string
+		scorer string
+		team   string
 	}{
 		{4, "1-0", "Ronaldo", "Portugal"},
 		{24, "1-1", "Costa", "Spain"},

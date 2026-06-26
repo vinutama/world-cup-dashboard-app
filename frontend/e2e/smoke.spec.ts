@@ -34,7 +34,10 @@ test.describe('World Cup Dashboard', () => {
     await page.waitForSelector('a[href^="/matches/2018-"]', { timeout: 10000 });
 
     // Page 1 first link should be /matches/2018-0
-    await expect(page.locator('a[href^="/matches/2018-"]').first()).toHaveAttribute('href', '/matches/2018-0');
+    await expect(page.locator('a[href^="/matches/2018-"]').first()).toHaveAttribute(
+      'href',
+      '/matches/2018-0',
+    );
 
     // Go to page 2
     await page.getByRole('button', { name: /next/i }).click();
