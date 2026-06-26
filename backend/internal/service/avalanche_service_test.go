@@ -448,4 +448,59 @@ func TestGetGoalAvalanche_ChaosZone_CrossDayNotClustered(t *testing.T) {
 	}
 }
 
+func TestGetGoalAvalanche_ChaosZone_DifferentKickoffNotClustered(t *testing.T) {
+	// Two goals from different matches on the same day, same minute (10'),
+	// but with DIFFERENT kickoff times (12:00 vs 16:00) → NOT clustered.
+	svc := &MatchService{
+		cache: &matchCache{
+			tournaments: map[int]*model.Tournament{
+				2018: {
+					Name: "2018",
+					Year: 2018,
+					Matches: []model.Match{
+						{Team1: "A", Team2: "B", Date: "2018-06-14"},
+						func() model.Match {
+							m := matchWithGoals("Match1", "Opp1", []model.Goal{
+								{Name: "P1", Minute: 10},
+							}, nil, "2018-06-15", "Stadium A")
+							m.Time = "12:00"
+							return m
+						}(),
+						func() model.Match {
+							m := matchWithGoals("Match2", "Opp2", nil, []model.Goal{
+								{Name: "P2", Minute: 10},
+							}, "2018-06-15", "Stadium B")
+							m.Time = "16:00"
+							return m
+						}(),
+					},
+				},
+			},
+		},
+	}
+
+	events, err := svc.GetGoalAvalanche(context.Background(), 2018)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Filter day 2 events (both matches are on day 2)
+	var day2 []model.TimelineEvent
+	for _, e := range events {
+		if e.MatchDay == 2 {
+			day2 = append(day2, e)
+		}
+	}
+	if len(day2) != 2 {
+		t.Fatalf("expected 2 day-2 events, got %d", len(day2))
+	}
+
+	if day2[0].IsClustered {
+		t.Errorf("event[0] (kickoff %s, minute %d) should NOT be clustered (different kickoff)", day2[0].Kickoff, day2[0].Minute)
+	}
+	if day2[1].IsClustered {
+		t.Errorf("event[1] (kickoff %s, minute %d) should NOT be clustered (different kickoff)", day2[1].Kickoff, day2[1].Minute)
+	}
+}
+
 func intPtr(v int) *int { return &v }

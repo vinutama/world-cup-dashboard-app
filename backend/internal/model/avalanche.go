@@ -13,4 +13,5 @@ type TimelineEvent struct {
 	IsClustered  bool   `json:"isClustered"`
 	Round        string `json:"round"`
 	FullTime     string `json:"fullTime"`
+	Kickoff      string `json:"kickoff"`
 }

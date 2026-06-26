@@ -67,6 +67,7 @@ func (s *MatchService) GetGoalAvalanche(ctx context.Context, year int) ([]model.
 				IsClustered:  false,
 				Round:        m.Round,
 				FullTime:     fmt.Sprintf("%d-%d", m.Score.FullTime[0], m.Score.FullTime[1]),
+				Kickoff:      m.Time,
 			})
 		}
 	}
@@ -141,14 +142,16 @@ func effectiveMinute(g model.Goal) int {
 const chaosWindow = 3
 
 // detectChaosZones scans events (sorted by matchDay then minute) and marks events
-// whose minutes are ≤3 apart across *different* matches on the same match day.
+// whose minutes are ≤3 apart across *different* matches on the same (match day, kickoff).
+// This ensures only goals from *concurrently-played* matches can form a chaos zone.
 func detectChaosZones(events []model.TimelineEvent) {
-	// Group by match day — chaos zones don't cross days
+	// Group by (match day, kickoff) — chaos zones don't cross days or kickoff slots
 	start := 0
 	for start < len(events) {
 		day := events[start].MatchDay
+		ko := events[start].Kickoff
 		end := start
-		for end+1 < len(events) && events[end+1].MatchDay == day {
+		for end+1 < len(events) && events[end+1].MatchDay == day && events[end+1].Kickoff == ko {
 			end++
 		}
 		group := events[start : end+1]

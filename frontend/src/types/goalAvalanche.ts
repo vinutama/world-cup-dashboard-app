@@ -18,6 +18,7 @@ export interface TimelineEvent {
   isClustered: boolean;
   round: string;
   fullTime: string;
+  kickoff: string;
 }
 
 export interface GoalAvalancheResponse {
