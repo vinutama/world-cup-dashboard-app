@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟡 6.3a deployed — 6.3b (Chaos Zone Badge) pending
+**Status:** 🟢 Phase 6.3 complete — 6.4a (Observer Animations) pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -301,9 +301,9 @@ type TimelineEvent struct {
 **Dependencies:** Task 6.2b
 
 ### Task 6.3b — Chaos Zone Badge
-- [ ] For cards flagged `isClustered`: render a pulsing red badge/dot
-- [ ] Style: `animate-pulse bg-red-500 rounded-full h-2 w-2` positioned at the top-right of the card
-- [ ] Tooltip on hover: "Chaos Zone — multiple goals in a short window"
+- [x] Pulsing red dot top-right of clustered cards: `animate-pulse bg-red-500 rounded-full h-2 w-2`
+- [x] CSS tooltip on hover: "⚡ Chaos Zone — multiple goals in a short window"
+- [x] `group/dot` pattern for isolated hover behavior
 
 **Estimated effort:** Small
 **Dependencies:** Task 6.3a
