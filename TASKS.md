@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟢 Phase 6.4b done — 6.4c pending
+**Status:** 🟢 Phase 6.4 done — 6.5 (QA) pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -330,9 +330,10 @@ type TimelineEvent struct {
 **Dependencies:** Task 6.4a
 
 ### Task 6.4c — Year Navigation
-- [ ] Add a year selector at the top of the Goal Avalanche page similar to the tournaments dropdown
-- [ ] Navigating to a different year fetches fresh avalanche data for that year
-- [ ] URL updates to `/goal-avalanche/:year`
+- [x] Year selector dropdown (`<select>`) at the top of the page
+- [x] Navigate to `/goal-avalanche/:year` via `useNavigate`
+- [x] Years: 2018, 2022, 2014, 2010
+- [x] Dark theme styling: `bg-slate-800 border-slate-600`
 
 **Estimated effort:** Small
 **Dependencies:** Task 6.4b
