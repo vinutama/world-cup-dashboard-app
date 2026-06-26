@@ -6,6 +6,7 @@ import Matches from './pages/Matches';
 import MatchDetail from './pages/MatchDetail';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './pages/ErrorBoundary';
+import GoalAvalanche from './pages/GoalAvalanche';
 
 export default function App() {
   return (
@@ -16,6 +17,8 @@ export default function App() {
           <Route path="/tournaments" element={<Tournaments />} />
           <Route path="/tournaments/:id/matches" element={<Matches />} />
           <Route path="/matches/:id" element={<MatchDetail />} />
+          <Route path="/goal-avalanche" element={<GoalAvalanche />} />
+          <Route path="/goal-avalanche/:year" element={<GoalAvalanche />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
