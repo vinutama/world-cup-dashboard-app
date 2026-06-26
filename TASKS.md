@@ -147,6 +147,9 @@
 
 **Status:** 🟢 Phase 5.3 done — 5.4 (Documentation & Release) pending
 
+### Bugs fixed during review
+- [x] Goal Avalanche nav link missing — added to `Layout.tsx` (PR #57)
+
 ---
 
 ## Execution Protocol
