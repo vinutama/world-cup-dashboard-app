@@ -65,6 +65,8 @@ func (s *MatchService) GetGoalAvalanche(ctx context.Context, year int) ([]model.
 				MatchDay:     matchDays[matchIdx],
 				CurrentScore: fmt.Sprintf("%d-%d", team1Goals, team2Goals),
 				IsClustered:  false,
+				Round:        m.Round,
+				FullTime:     fmt.Sprintf("%d-%d", m.Score.FullTime[0], m.Score.FullTime[1]),
 			})
 		}
 	}
