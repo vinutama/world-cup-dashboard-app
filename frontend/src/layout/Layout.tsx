@@ -8,6 +8,7 @@ interface LayoutProps {
 const navItems = [
   { path: '/', label: 'Home', exact: true },
   { path: '/tournaments', label: 'Tournaments' },
+  { path: '/goal-avalanche', label: 'Goal Avalanche' },
 ];
 
 export default function Layout({ children }: LayoutProps) {
