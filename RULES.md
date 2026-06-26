@@ -90,3 +90,14 @@ Every pull request must include:
 - files changed
 - test results
 - review notes
+
+---
+
+## Rule 9
+
+GitHub only processes closing keywords (`closes #N`, `fixes #N`) from the **merge commit message** for squash merges — the PR body is dropped.
+- When merging: `gh pr merge <N> --squash --delete-branch --body "closes #N"`
+- After merging: `gh issue view <N> --json state` to verify auto-close
+- If still OPEN: `gh issue close <N> -c "merged in PR #<M>"`
+
+---
