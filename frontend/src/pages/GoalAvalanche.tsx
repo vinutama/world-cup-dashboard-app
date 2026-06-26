@@ -72,12 +72,24 @@ function TimelineCard({
       >
         <div
           onClick={onToggle}
-          className={`inline-block bg-white/5 backdrop-blur-md border rounded-xl p-4 shadow-xl text-left cursor-pointer select-none transition-all duration-300 hover:bg-white/10 ${
+          className={`relative inline-block bg-white/5 backdrop-blur-md border rounded-xl p-4 shadow-xl text-left cursor-pointer select-none transition-all duration-300 hover:bg-white/10 ${
             event.isClustered
               ? 'border-orange-400/60 shadow-[0_0_15px_rgba(251,146,60,0.3)]'
               : 'border-white/10'
           } ${isExpanded ? 'bg-white/10 scale-[1.02]' : ''}`}
         >
+          {/* Chaos Zone pulsing dot + tooltip */}
+          {event.isClustered && (
+            <div className="absolute -top-1.5 -right-1.5 z-10 group/dot">
+              <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+              <div className="absolute right-0 top-full mt-1.5 opacity-0 invisible group-hover/dot:opacity-100 group-hover/dot:visible transition-all duration-200 pointer-events-none z-50">
+                <div className="px-2 py-1 bg-slate-800 text-xs text-red-300 rounded border border-red-500/30 whitespace-nowrap shadow-lg shadow-red-500/10">
+                  ⚡ Chaos Zone &mdash; multiple goals in a short window
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 mb-1">
             <span className="text-2xl font-bold text-cyan-400">
               {event.minute}&prime;
