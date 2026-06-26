@@ -205,6 +205,20 @@ export default function GoalAvalanche() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [years, setYears] = useState<number[]>([]);
+
+  // Fetch available years on mount
+  useEffect(() => {
+    fetch('/api/years')
+      .then((res) => res.json() as Promise<number[]>)
+      .then((data) => {
+        setYears(data);
+      })
+      .catch(() => {
+        // Fallback to a sensible default if years endpoint fails
+        setYears([2010, 2014, 2018, 2022]);
+      });
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -275,7 +289,7 @@ export default function GoalAvalanche() {
             onChange={(e) => navigate(`/goal-avalanche/${e.target.value}`)}
             className="bg-slate-800 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
           >
-            {['2018', '2022', '2014', '2010'].map((y) => (
+            {years.map((y) => (
               <option key={y} value={y}>
                 {y}
               </option>
