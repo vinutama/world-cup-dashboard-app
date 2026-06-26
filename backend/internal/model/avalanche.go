@@ -11,4 +11,6 @@ type TimelineEvent struct {
 	MatchDay     int    `json:"match_day"`
 	CurrentScore string `json:"current_score"`
 	IsClustered  bool   `json:"is_clustered"`
+	Round        string `json:"round"`
+	FullTime     string `json:"full_time"`
 }

@@ -16,6 +16,8 @@ export interface TimelineEvent {
   matchDay: number;
   currentScore: string;
   isClustered: boolean;
+  round: string;
+  fullTime: string;
 }
 
 export interface GoalAvalancheResponse {

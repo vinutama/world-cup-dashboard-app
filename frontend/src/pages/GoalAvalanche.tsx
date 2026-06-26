@@ -2,7 +2,63 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { TimelineEvent, GoalAvalancheResponse } from '../types';
 
-function TimelineCard({ event, idx }: { event: TimelineEvent; idx: number }) {
+function TimelineBar({ minute }: { minute: number }) {
+  const pct = Math.min((minute / 120) * 100, 100);
+  return (
+    <div className="mt-3">
+      <div className="text-xs text-slate-500 mb-1">Match timeline</div>
+      <div className="relative h-2 bg-slate-700 rounded-full overflow-hidden">
+        {/* Progress track */}
+        <div
+          className="h-full bg-cyan-800/40 rounded-full"
+          style={{ width: `${pct}%` }}
+        />
+        {/* Goal marker */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+          style={{ left: `${pct}%`, marginLeft: '-6px' }}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-slate-600 mt-0.5">
+        <span>0&prime;</span>
+        <span>{minute}&prime;</span>
+        <span>120&prime;</span>
+      </div>
+    </div>
+  );
+}
+
+function ExpandedDetails({ event }: { event: TimelineEvent }) {
+  return (
+    <div className="mt-4 pt-3 border-t border-white/10 transition-all duration-300">
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <span className="text-slate-500">Stage</span>
+          <div className="text-white font-medium">{event.round || 'N/A'}</div>
+        </div>
+        <div>
+          <span className="text-slate-500">Full time</span>
+          <div className="text-white font-medium">
+            {event.teamA} {event.fullTime} {event.teamB}
+          </div>
+        </div>
+      </div>
+      <TimelineBar minute={event.minute} />
+    </div>
+  );
+}
+
+function TimelineCard({
+  event,
+  idx,
+  isExpanded,
+  onToggle,
+}: {
+  event: TimelineEvent;
+  idx: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   const isRight = idx % 2 === 0;
   return (
     <div
@@ -15,11 +71,12 @@ function TimelineCard({ event, idx }: { event: TimelineEvent; idx: number }) {
         className={`w-5/12 ${isRight ? 'text-right pr-8' : 'text-left pl-8'}`}
       >
         <div
-          className={`inline-block bg-white/5 backdrop-blur-md border rounded-xl p-4 shadow-xl text-left ${
+          onClick={onToggle}
+          className={`inline-block bg-white/5 backdrop-blur-md border rounded-xl p-4 shadow-xl text-left cursor-pointer select-none transition-all duration-300 hover:bg-white/10 ${
             event.isClustered
               ? 'border-orange-400/60 shadow-[0_0_15px_rgba(251,146,60,0.3)]'
               : 'border-white/10'
-          }`}
+          } ${isExpanded ? 'bg-white/10 scale-[1.02]' : ''}`}
         >
           <div className="flex items-center gap-2 mb-1">
             <span className="text-2xl font-bold text-cyan-400">
@@ -38,17 +95,20 @@ function TimelineCard({ event, idx }: { event: TimelineEvent; idx: number }) {
           <div className="text-slate-500 text-xs mt-1">
             {event.teamScored}
           </div>
+
+          {/* Expanded details */}
+          {isExpanded && <ExpandedDetails event={event} />}
         </div>
       </div>
 
       {/* Timeline dot */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
         <div
-          className={`w-4 h-4 rounded-full border-2 ${
+          className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${
             event.isClustered
               ? 'bg-orange-400 border-orange-400'
               : 'bg-cyan-400 border-cyan-400'
-          }`}
+          } ${isExpanded ? 'scale-150 shadow-[0_0_10px_rgba(6,182,212,0.6)]' : ''}`}
         />
       </div>
 
@@ -61,9 +121,13 @@ function TimelineCard({ event, idx }: { event: TimelineEvent; idx: number }) {
 function DaySection({
   day,
   events,
+  expandedId,
+  onToggle,
 }: {
   day: string;
   events: TimelineEvent[];
+  expandedId: string | null;
+  onToggle: (id: string) => void;
 }) {
   return (
     <div className="mb-12">
@@ -77,9 +141,18 @@ function DaySection({
         {/* Central glowing vertical line */}
         <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l-2 border-dashed border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
 
-        {events.map((event, idx) => (
-          <TimelineCard key={`${event.matchId}-${event.minute}-${idx}`} event={event} idx={idx} />
-        ))}
+        {events.map((event, idx) => {
+          const cardId = `${event.matchId}-${event.minute}-${idx}`;
+          return (
+            <TimelineCard
+              key={cardId}
+              event={event}
+              idx={idx}
+              isExpanded={expandedId === cardId}
+              onToggle={() => onToggle(cardId)}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -91,10 +164,12 @@ export default function GoalAvalanche() {
   const [timeline, setTimeline] = useState<Record<string, TimelineEvent[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
+    setExpandedId(null);
 
     fetch(`/api/v1/goal-avalanche?year=${year}`)
       .then((res) => {
@@ -110,6 +185,10 @@ export default function GoalAvalanche() {
         setLoading(false);
       });
   }, [year]);
+
+  const handleToggle = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
 
   // Loading state
   if (loading) {
@@ -157,7 +236,13 @@ export default function GoalAvalanche() {
         </p>
 
         {days.map((day) => (
-          <DaySection key={day} day={day} events={timeline[day]} />
+          <DaySection
+            key={day}
+            day={day}
+            events={timeline[day]}
+            expandedId={expandedId}
+            onToggle={handleToggle}
+          />
         ))}
       </div>
     </div>
