@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟡 6.2b deployed — 6.2c (Timeline component) pending
+**Status:** 🟡 6.3a deployed — 6.3b (Chaos Zone Badge) pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -287,13 +287,15 @@ type TimelineEvent struct {
 ## Phase 6.3 — Micro-Interactions & Expansion Cards
 
 ### Task 6.3a — Expandable Detail View
-- [ ] Add React state (`expandedId: string | null`) to track which card is expanded
-- [ ] On click of a goal card: toggle expanded view
-- [ ] When expanded, reveal:
+- [x] Add `expandedId: string | null` state to track which card is expanded
+- [x] Click toggles expand; clicking different card switches; clicking same card closes
+- [x] When expanded, reveal:
   - Final match result (teams + full-time score)
   - Tournament stage/round
-  - Stylized timeline track showing how late in the game the goal occurred (visual bar from 0' to 120' with a marker at the goal minute)
-- [ ] Animate expand/collapse with `transition-all duration-300`
+  - Stylized timeline track (0' to 120' visual bar with glowing marker at goal minute)
+- [x] Animate expand/collapse with `transition-all duration-300`
+- [x] Backend: added `round` and `full_time` JSON fields to TimelineEvent
+- [x] TS types updated: `round` and `fullTime` fields
 
 **Estimated effort:** Medium
 **Dependencies:** Task 6.2b
