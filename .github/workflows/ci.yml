@@ -3,6 +3,9 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      docker:
+        options: --privileged
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -11,8 +14,33 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci
+
+      # Install Docker Compose
+      - run: docker compose version
+
+      # Go build + test
       - run: cd backend && go build ./...
-      - run: cd backend && go test ./...
+      - run: cd backend && go test ./... -count=1
+
+      # Node build
+      - run: npm ci
       - run: npm run build -w frontend
       - run: npm test -w frontend
+
+      # Build Docker images & boot stack
+      - run: docker compose build
+      - run: docker compose up -d
+      - run: sleep 5
+
+      # Smoke check — wait for health
+      - run: |
+          curl --retry 10 --retry-delay 2 --retry-connrefused http://localhost:8080/api/health
+          curl --retry 5 --retry-delay 2 http://localhost:5173 | head -1
+
+      # E2E tests
+      - run: npx playwright install chromium --with-deps
+      - run: npx playwright test --project=chromium --reporter=list
+        working-directory: frontend
+
+      # Cleanup
+      - run: docker compose down
