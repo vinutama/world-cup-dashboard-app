@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import type { TimelineEvent, GoalAvalancheResponse } from '../types';
 import { useInView } from '../hooks/useInView';
 
@@ -210,6 +210,7 @@ function StickyProgressBar({ days }: { days: string[] }) {
 
 export default function GoalAvalanche() {
   const { year: yearParam } = useParams<{ year: string }>();
+  const navigate = useNavigate();
   const year = yearParam ?? '2018';
   const [timeline, setTimeline] = useState<Record<string, TimelineEvent[]>>({});
   const [loading, setLoading] = useState(true);
@@ -279,12 +280,27 @@ export default function GoalAvalanche() {
     <div className="min-h-screen bg-slate-900 py-12 px-4">
       <StickyProgressBar days={days} />
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-4xl font-bold text-white mb-2">
-          Goal Avalanche
-        </h1>
-        <p className="text-slate-400 mb-8">
-          FIFA World Cup {year} &mdash; All goals in chronological order
-        </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2">
+              Goal Avalanche
+            </h1>
+            <p className="text-slate-400">
+              FIFA World Cup {year} &mdash; All goals in chronological order
+            </p>
+          </div>
+          <select
+            value={year}
+            onChange={(e) => navigate(`/goal-avalanche/${e.target.value}`)}
+            className="bg-slate-800 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+          >
+            {['2018', '2022', '2014', '2010'].map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {days.map((day) => (
           <DaySection
