@@ -271,7 +271,15 @@ func (h *Handler) GetGoalAvalanche(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, events)
+	// Group by match day so the frontend receives a clean, categorized structure.
+	timeline := make(map[int][]model.TimelineEvent)
+	for _, e := range events {
+		timeline[e.MatchDay] = append(timeline[e.MatchDay], e)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"timeline": timeline,
+	})
 }
 
 // writeJSON sends a JSON response with the given status code.

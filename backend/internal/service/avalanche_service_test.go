@@ -281,4 +281,171 @@ func TestGetGoalAvalanche_InjuryTimeOffset(t *testing.T) {
 	}
 }
 
+func TestGetGoalAvalanche_ChaosZone_DifferentMatches(t *testing.T) {
+	// Two goals from different matches on day 2, 2 minutes apart → chaos zone.
+	svc := &MatchService{
+		cache: &matchCache{
+			tournaments: map[int]*model.Tournament{
+				2018: {
+					Name: "2018",
+					Year: 2018,
+					Matches: []model.Match{
+						{Team1: "A", Team2: "B", Date: "2018-06-14"},
+						matchWithGoals("Match1", "Opp1", []model.Goal{
+							{Name: "P1", Minute: 10},
+						}, nil, "2018-06-15", ""),
+						matchWithGoals("Match2", "Opp2", nil, []model.Goal{
+							{Name: "P2", Minute: 12},
+						}, "2018-06-15", ""),
+					},
+				},
+			},
+		},
+	}
+
+	events, err := svc.GetGoalAvalanche(context.Background(), 2018)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Filter day 2 events (chaos zone candidates)
+	var day2 []model.TimelineEvent
+	for _, e := range events {
+		if e.MatchDay == 2 {
+			day2 = append(day2, e)
+		}
+	}
+	if len(day2) != 2 {
+		t.Fatalf("expected 2 day-2 events, got %d", len(day2))
+	}
+
+	if !day2[0].IsClustered {
+		t.Errorf("event[0] (minute %d) should be clustered (different matches, 2 min apart)", day2[0].Minute)
+	}
+	if !day2[1].IsClustered {
+		t.Errorf("event[1] (minute %d) should be clustered (different matches, 2 min apart)", day2[1].Minute)
+	}
+}
+
+func TestGetGoalAvalanche_ChaosZone_SameMatchNotClustered(t *testing.T) {
+	// Two goals from the same match, 1 minute apart → NOT a chaos zone.
+	svc := &MatchService{
+		cache: &matchCache{
+			tournaments: map[int]*model.Tournament{
+				2018: {
+					Name: "2018",
+					Year: 2018,
+					Matches: []model.Match{
+						{Team1: "A", Team2: "B", Date: "2018-06-14"},
+						matchWithGoals("TeamX", "TeamY", []model.Goal{
+							{Name: "Scorer1", Minute: 10},
+							{Name: "Scorer2", Minute: 11},
+						}, nil, "2018-06-15", ""),
+					},
+				},
+			},
+		},
+	}
+
+	events, err := svc.GetGoalAvalanche(context.Background(), 2018)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var day2 []model.TimelineEvent
+	for _, e := range events {
+		if e.MatchDay == 2 {
+			day2 = append(day2, e)
+		}
+	}
+	if len(day2) != 2 {
+		t.Fatalf("expected 2 day-2 events, got %d", len(day2))
+	}
+
+	if day2[0].IsClustered {
+		t.Errorf("event[0] should NOT be clustered (same match)")
+	}
+	if day2[1].IsClustered {
+		t.Errorf("event[1] should NOT be clustered (same match)")
+	}
+}
+
+func TestGetGoalAvalanche_ChaosZone_NoClusterWhenFarApart(t *testing.T) {
+	// Two goals from different matches on day 2, 10 minutes apart → NOT clustered.
+	svc := &MatchService{
+		cache: &matchCache{
+			tournaments: map[int]*model.Tournament{
+				2018: {
+					Name: "2018",
+					Year: 2018,
+					Matches: []model.Match{
+						{Team1: "A", Team2: "B", Date: "2018-06-14"},
+						matchWithGoals("Match1", "Opp1", []model.Goal{
+							{Name: "P1", Minute: 5},
+						}, nil, "2018-06-15", ""),
+						matchWithGoals("Match2", "Opp2", nil, []model.Goal{
+							{Name: "P2", Minute: 20},
+						}, "2018-06-15", ""),
+					},
+				},
+			},
+		},
+	}
+
+	events, err := svc.GetGoalAvalanche(context.Background(), 2018)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var day2 []model.TimelineEvent
+	for _, e := range events {
+		if e.MatchDay == 2 {
+			day2 = append(day2, e)
+		}
+	}
+	if len(day2) != 2 {
+		t.Fatalf("expected 2 day-2 events, got %d", len(day2))
+	}
+
+	if day2[0].IsClustered {
+		t.Errorf("event[0] should NOT be clustered (15 min apart)")
+	}
+	if day2[1].IsClustered {
+		t.Errorf("event[1] should NOT be clustered (15 min apart)")
+	}
+}
+
+func TestGetGoalAvalanche_ChaosZone_CrossDayNotClustered(t *testing.T) {
+	// Two goals from different matches, same minute but different days → NOT clustered.
+	svc := &MatchService{
+		cache: &matchCache{
+			tournaments: map[int]*model.Tournament{
+				2018: {
+					Name: "2018",
+					Year: 2018,
+					Matches: []model.Match{
+						matchWithGoals("Match1", "Opp1", []model.Goal{
+							{Name: "P1", Minute: 10},
+						}, nil, "2018-06-14", ""),
+						matchWithGoals("Match2", "Opp2", nil, []model.Goal{
+							{Name: "P2", Minute: 10},
+						}, "2018-06-15", ""),
+					},
+				},
+			},
+		},
+	}
+
+	events, err := svc.GetGoalAvalanche(context.Background(), 2018)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for i, e := range events {
+		if e.IsClustered {
+			t.Errorf("event[%d] (day %d, minute %d) should NOT be clustered (different days)", i, e.MatchDay, e.Minute)
+		}
+	}
+}
+
 func intPtr(v int) *int { return &v }

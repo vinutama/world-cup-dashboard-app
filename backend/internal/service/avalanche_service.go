@@ -76,6 +76,9 @@ func (s *MatchService) GetGoalAvalanche(ctx context.Context, year int) ([]model.
 		return events[i].Minute < events[j].Minute
 	})
 
+	// Detect chaos zones before returning
+	detectChaosZones(events)
+
 	return events, nil
 }
 
@@ -130,4 +133,59 @@ func effectiveMinute(g model.Goal) int {
 		return g.Minute + *g.Offset
 	}
 	return g.Minute
+}
+
+// chaosWindow is the maximum minute gap for two events to be in the same chaos zone.
+const chaosWindow = 3
+
+// detectChaosZones scans events (sorted by matchDay then minute) and marks events
+// whose minutes are ≤3 apart across *different* matches on the same match day.
+func detectChaosZones(events []model.TimelineEvent) {
+	// Group by match day — chaos zones don't cross days
+	start := 0
+	for start < len(events) {
+		day := events[start].MatchDay
+		end := start
+		for end+1 < len(events) && events[end+1].MatchDay == day {
+			end++
+		}
+		group := events[start : end+1]
+
+		// Within the day group, find clusters using a sliding window.
+		// i is the start of the current window, j expands it.
+		i := 0
+		for i < len(group) {
+			j := i
+			// Expand window while events are ≤3 minutes from group[i]
+			for j+1 < len(group) && group[j+1].Minute-group[i].Minute <= chaosWindow {
+				j++
+			}
+
+			// If the window spans multiple match IDs, it's a chaos zone.
+			if hasMultipleMatches(group[i : j+1]) {
+				for k := i; k <= j; k++ {
+					group[k].IsClustered = true
+				}
+			}
+
+			i++
+		}
+
+		start = end + 1
+	}
+}
+
+// hasMultipleMatches returns true when the slice contains events from
+// more than one distinct match.
+func hasMultipleMatches(events []model.TimelineEvent) bool {
+	if len(events) < 2 {
+		return false
+	}
+	first := events[0].MatchID
+	for _, e := range events[1:] {
+		if e.MatchID != first {
+			return true
+		}
+	}
+	return false
 }
