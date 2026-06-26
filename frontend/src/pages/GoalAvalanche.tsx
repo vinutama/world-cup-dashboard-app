@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { TimelineEvent, GoalAvalancheResponse } from '../types';
 import { useInView } from '../hooks/useInView';
+
+interface ChaosZone {
+  day: string;
+  startEventIdx: number;
+  endEventIdx: number;
+}
 
 function TimelineBar({ minute }: { minute: number }) {
   const pct = Math.min((minute / 120) * 100, 100);
@@ -49,11 +55,13 @@ function ExpandedDetails({ event }: { event: TimelineEvent }) {
 function TimelineCard({
   event,
   idx,
+  day,
   isExpanded,
   onToggle,
 }: {
   event: TimelineEvent;
   idx: number;
+  day: string;
   isExpanded: boolean;
   onToggle: () => void;
 }) {
@@ -62,6 +70,8 @@ function TimelineCard({
   return (
     <div
       ref={ref}
+      data-day={day}
+      data-event-idx={idx}
       className={`relative flex items-start mb-6 transition-all duration-500 ease-in-out ${
         inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       } ${isRight ? 'flex-row' : 'flex-row-reverse'}`}
@@ -156,6 +166,7 @@ function DaySection({
               key={cardId}
               event={event}
               idx={idx}
+              day={day}
               isExpanded={expandedId === cardId}
               onToggle={() => onToggle(cardId)}
             />
@@ -200,6 +211,83 @@ function StickyProgressBar({ days }: { days: string[] }) {
   );
 }
 
+function ChaosZoneNav({
+  chaosZones,
+  chaosIndex,
+  onPrev,
+  onNext,
+  onJumpToZone,
+}: {
+  chaosZones: ChaosZone[];
+  chaosIndex: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onJumpToZone: (idx: number) => void;
+}) {
+  return (
+    <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-2">
+      {/* Match day quick jump */}
+      {chaosZones.length > 0 && (
+        <div className="bg-slate-800/90 backdrop-blur-md border border-orange-400/30 rounded-xl p-3 shadow-xl shadow-orange-500/5">
+          <div className="text-xs text-orange-300 mb-1 font-medium">⚡ Chaos Zones</div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onPrev}
+              disabled={chaosIndex <= 0}
+              className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg bg-slate-700/80 text-white text-sm hover:bg-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Previous chaos zone"
+            >
+              ◀
+            </button>
+            <span className="text-xs text-slate-400 px-2 min-w-[60px] text-center">
+              {chaosZones.length > 0
+                ? `${chaosIndex + 1}/${chaosZones.length}`
+                : '0/0'}
+            </span>
+            <button
+              onClick={onNext}
+              disabled={chaosIndex >= chaosZones.length - 1}
+              className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg bg-slate-700/80 text-white text-sm hover:bg-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Next chaos zone"
+            >
+              ▶
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DayJumpNav({
+  days,
+  currentDay,
+  onJumpToDay,
+}: {
+  days: string[];
+  currentDay: string;
+  onJumpToDay: (day: string) => void;
+}) {
+  return (
+    <div className="fixed left-6 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1">
+      {days.map((day) => (
+        <button
+          key={day}
+          onClick={() => onJumpToDay(day)}
+          className={`min-h-[28px] min-w-[28px] flex items-center justify-center rounded-full text-xs font-mono transition-all ${
+            currentDay === day
+              ? 'bg-cyan-500 text-white scale-110 shadow-[0_0_8px_rgba(6,182,212,0.6)]'
+              : 'bg-slate-800/60 text-slate-500 hover:bg-slate-700 hover:text-slate-300 border border-slate-700/50'
+          }`}
+          title={`Jump to Day ${day}`}
+        >
+          {day}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function GoalAvalanche() {
   const { year: yearParam } = useParams<{ year: string }>();
   const navigate = useNavigate();
@@ -209,6 +297,90 @@ export default function GoalAvalanche() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [years, setYears] = useState<number[]>([]);
+  const [chaosIndex, setChaosIndex] = useState(0);
+  const [currentDay, setCurrentDay] = useState('1');
+
+  // Compute chaos zones from timeline
+  const chaosZones = useMemo((): ChaosZone[] => {
+    const zones: ChaosZone[] = [];
+    const sortedDays = Object.keys(timeline).sort(
+      (a, b) => parseInt(a) - parseInt(b)
+    );
+    for (const day of sortedDays) {
+      const events = timeline[day];
+      let i = 0;
+      while (i < events.length) {
+        if (!events[i].isClustered) {
+          i++;
+          continue;
+        }
+        const startIdx = i;
+        while (i + 1 < events.length && events[i + 1].isClustered) {
+          i++;
+        }
+        zones.push({ day, startEventIdx: startIdx, endEventIdx: i });
+        i++;
+      }
+    }
+    return zones;
+  }, [timeline]);
+
+  // Scroll helper
+  const scrollToEvent = useCallback((day: string, eventIdx: number) => {
+    const el = document.querySelector(
+      `[data-day="${day}"][data-event-idx="${eventIdx}"]`
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
+  const handlePrevChaos = useCallback(() => {
+    const next = Math.max(0, chaosIndex - 1);
+    setChaosIndex(next);
+    const zone = chaosZones[next];
+    if (zone) scrollToEvent(zone.day, zone.startEventIdx);
+  }, [chaosIndex, chaosZones, scrollToEvent]);
+
+  const handleNextChaos = useCallback(() => {
+    const next = Math.min(chaosZones.length - 1, chaosIndex + 1);
+    setChaosIndex(next);
+    const zone = chaosZones[next];
+    if (zone) scrollToEvent(zone.day, zone.startEventIdx);
+  }, [chaosIndex, chaosZones, scrollToEvent]);
+
+  const handleJumpToDay = useCallback(
+    (day: string) => {
+      setCurrentDay(day);
+      const events = timeline[day];
+      if (events && events.length > 0) {
+        scrollToEvent(day, 0);
+      }
+    },
+    [timeline, scrollToEvent]
+  );
+
+  // Track current day via scroll position — uses StickyProgressBar's logic
+  // but we also read it here for DayJumpNav
+  useEffect(() => {
+    const sortedDays = Object.keys(timeline).sort(
+      (a, b) => parseInt(a) - parseInt(b)
+    );
+    if (sortedDays.length === 0) return;
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const docHeight =
+        document.documentElement.scrollHeight - window.innerHeight;
+      const pct = docHeight > 0 ? Math.min((scrollTop / docHeight) * 100, 100) : 0;
+      const idx = Math.min(
+        Math.floor((pct / 100) * sortedDays.length),
+        sortedDays.length - 1
+      );
+      setCurrentDay(sortedDays[idx] ?? sortedDays[0]);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [timeline]);
 
   // Fetch available years on mount
   useEffect(() => {
@@ -309,6 +481,24 @@ export default function GoalAvalanche() {
             onToggle={handleToggle}
           />
         ))}
+
+        <ChaosZoneNav
+          chaosZones={chaosZones}
+          chaosIndex={chaosIndex}
+          onPrev={handlePrevChaos}
+          onNext={handleNextChaos}
+          onJumpToZone={(idx) => {
+            setChaosIndex(idx);
+            const zone = chaosZones[idx];
+            if (zone) scrollToEvent(zone.day, zone.startEventIdx);
+          }}
+        />
+
+        <DayJumpNav
+          days={days}
+          currentDay={currentDay}
+          onJumpToDay={handleJumpToDay}
+        />
       </div>
     </div>
   );
