@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟢 Phase 6.3 complete — 6.4a pending
+**Status:** 🟢 Phase 6.4a done — 6.4b pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -313,9 +313,10 @@ type TimelineEvent struct {
 ## Phase 6.4 — Cinematic Scrolling & Polish
 
 ### Task 6.4a — Intersection Observer Animations
-- [ ] Implement custom `useInView` hook (or use a lightweight utility) that triggers when cards enter the viewport
-- [ ] Cards fade + slide up on entry: `transition-all duration-500 ease-in-out opacity-0 translate-y-8` → `opacity-100 translate-y-0`
-- [ ] Stagger animation delay for adjacent cards (50ms per card)
+- [x] Implement custom `useInView` hook using IntersectionObserver (37 lines, zero external deps)
+- [x] Cards animate in: `opacity-0 translate-y-8` → `opacity-100 translate-y-0`
+- [x] 50ms stagger delay between adjacent cards in the same day via `transitionDelay`
+- [x] Default `inView=true` avoids flash for above-fold cards
 
 **Estimated effort:** Medium
 **Dependencies:** Task 6.3b
