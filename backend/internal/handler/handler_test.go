@@ -62,6 +62,15 @@ func (m *mockMatchService) GetMatch(ctx context.Context, year, idx int) (*model.
 	return nil, fmt.Errorf("tournament for year %d not found", year)
 }
 
+func (m *mockMatchService) GetGoalAvalanche(ctx context.Context, year int) ([]model.TimelineEvent, error) {
+	for _, t := range m.tournaments {
+		if t.Year == year {
+			return []model.TimelineEvent{}, nil
+		}
+	}
+	return nil, fmt.Errorf("tournament for year %d not found", year)
+}
+
 func setupTestHandler() *Handler {
 	return New(
 		&mockYearService{
@@ -274,7 +283,7 @@ func TestGetTournamentMatches(t *testing.T) {
 	}
 
 	var result struct {
-		Matches    []model.Match `json:"matches"`
+		Matches    []matchResponse `json:"matches"`
 		Page       int           `json:"page"`
 		PerPage    int           `json:"per_page"`
 		Total      int           `json:"total"`
@@ -284,8 +293,8 @@ func TestGetTournamentMatches(t *testing.T) {
 	if len(result.Matches) != 2 {
 		t.Fatalf("expected 2 matches, got %d", len(result.Matches))
 	}
-	if result.Matches[0].Team1 != "Russia" {
-		t.Errorf("expected Russia, got %s", result.Matches[0].Team1)
+	if result.Matches[0].Match.Team1 != "Russia" {
+		t.Errorf("expected Russia, got %s", result.Matches[0].Match.Team1)
 	}
 	if result.Page != 1 {
 		t.Errorf("expected page=1, got %d", result.Page)
