@@ -121,14 +121,14 @@
 **Dependencies:** Tasks 5.1, 3.1, 4.4
 
 ### Task 5.3 — Self-Review & Bug Fixes
-- [ ] **5.3a — Static analysis pass:** run all linters, fix warnings
-- [ ] **5.3b — Security audit:** check for exposed secrets, XSS, injection vectors
-- [ ] **5.3c — Performance audit:** check bundle size, API response times, unnecessary re-renders
-- [ ] **5.3d — UX walkthrough:** manual click-through of all flows (home → tournaments → matches → detail → back)
-- [ ] Create GitHub Issues for any defects found (format: `[BUG] description` + Problem / Impact / Root Cause / Proposed Fix)
-- [ ] Fix high-severity issues immediately
-- [ ] Update tests to cover fixes
-- [ ] Update TASKS.md after each fix
+- [x] **5.3a — Static analysis pass:** run all linters, fix warnings
+- [x] **5.3b — Security audit:** check for exposed secrets, XSS, injection vectors
+- [x] **5.3c — Performance audit:** check bundle size, API response times, unnecessary re-renders
+- [x] **5.3d — UX walkthroug...[truncated]
+- [x] Create GitHub Issues for any defects found (format: `[BUG] description` + Problem / Impact / Root Cause / Proposed Fix)
+- [x] Fix high-severity issues immediately — Prettier + gofmt formatting in 10 files
+- [x] Update tests to cover fixes — 22/22 tests pass
+- [x] Update TASKS.md after each fix
 
 **Exit criteria:** All linters pass at warning-free level; no high-severity open issues; UX walkthrough passes without blockers.
 
@@ -145,7 +145,7 @@
 **Estimated effort:** Small
 **Dependencies:** Tasks 5.3, 5.1
 
-**Status:** 🟢 Phase 5.2 done — 5.3 (Self-Review) pending
+**Status:** 🟢 Phase 5.3 done — 5.4 (Documentation & Release) pending
 
 ---
 
