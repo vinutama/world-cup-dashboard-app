@@ -174,6 +174,40 @@ function DaySection({
   );
 }
 
+function StickyProgressBar({ days }: { days: string[] }) {
+  const [progress, setProgress] = useState(0);
+  const [currentDay, setCurrentDay] = useState(days[0] ?? '');
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = docHeight > 0 ? Math.min((scrollTop / docHeight) * 100, 100) : 0;
+      setProgress(pct);
+
+      const idx = Math.min(Math.floor((pct / 100) * days.length), days.length - 1);
+      setCurrentDay(days[idx] ?? days[0]);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [days]);
+
+  return (
+    <div className="fixed top-0 left-0 z-30 w-full pointer-events-none">
+      <div
+        className="h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 transition-all duration-150"
+        style={{ width: `${progress}%` }}
+      />
+      {progress > 0 && progress < 100 && (
+        <div className="absolute top-2 right-4 text-xs text-cyan-400 font-mono bg-slate-900/80 px-2 py-1 rounded border border-cyan-400/30 shadow-lg">
+          Day {currentDay} &middot; {Math.round(progress)}%
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GoalAvalanche() {
   const { year: yearParam } = useParams<{ year: string }>();
   const year = yearParam ?? '2018';
@@ -243,6 +277,7 @@ export default function GoalAvalanche() {
 
   return (
     <div className="min-h-screen bg-slate-900 py-12 px-4">
+      <StickyProgressBar days={days} />
       <div className="max-w-5xl mx-auto">
         <h1 className="text-4xl font-bold text-white mb-2">
           Goal Avalanche
