@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { TimelineEvent, GoalAvalancheResponse } from '../types';
+import { useInView } from '../hooks/useInView';
 
 function TimelineBar({ minute }: { minute: number }) {
   const pct = Math.min((minute / 120) * 100, 100);
@@ -60,11 +61,14 @@ function TimelineCard({
   onToggle: () => void;
 }) {
   const isRight = idx % 2 === 0;
+  const { ref, inView } = useInView<HTMLDivElement>({ once: true, threshold: 0.1 });
   return (
     <div
-      className={`relative flex items-start mb-6 ${
-        isRight ? 'flex-row' : 'flex-row-reverse'
-      }`}
+      ref={ref}
+      className={`relative flex items-start mb-6 transition-all duration-500 ease-in-out ${
+        inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      } ${isRight ? 'flex-row' : 'flex-row-reverse'}`}
+      style={{ transitionDelay: `${idx * 50}ms` }}
     >
       {/* Card */}
       <div
