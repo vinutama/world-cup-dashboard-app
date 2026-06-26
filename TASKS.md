@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟢 Phase 6.1 complete (6.1a, 6.1b, 6.1c deployed) — Phase 6.2 (TS types, frontend skeleton) pending
+**Status:** 🟡 6.2a deployed — 6.2b & 6.2c pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -258,26 +258,11 @@ type TimelineEvent struct {
 ## Phase 6.2 — TypeScript Types & Frontend Layout Skeleton
 
 ### Task 6.2a — TypeScript Interfaces
-- [ ] Define matching TS interfaces in `frontend/src/types/goalAvalanche.ts`:
-
-```ts
-interface TimelineEvent {
-  matchId: string;
-  teamA: string;
-  teamB: string;
-  scorer: string;
-  teamScored: string;
-  minute: number;
-  matchDay: number;
-  currentScore: string;
-  isClustered: boolean;
-}
-
-interface GoalAvalancheResponse {
-  year: number;
-  eventsByDay: Record<number, TimelineEvent[]>;
-}
-```
+- [x] Create `frontend/src/types/goalAvalanche.ts` with `TimelineEvent` and `GoalAvalancheResponse` interfaces
+- [x] `TimelineEvent` — maps backend JSON event (matchId, teamA, teamB, scorer, teamScored, minute, matchDay, currentScore, isClustered)
+- [x] `GoalAvalancheResponse` — wraps `timeline: Record<string, TimelineEvent[]>`
+- [x] Re-exported from types barrel (`index.ts`)
+- [x] `tsc --noEmit` passes cleanly
 
 **Estimated effort:** Small
 **Dependencies:** Task 6.1c
