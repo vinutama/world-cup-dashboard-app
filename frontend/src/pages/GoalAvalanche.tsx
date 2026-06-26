@@ -102,6 +102,9 @@ function TimelineCard({
             {event.teamA} {event.currentScore} {event.teamB}
           </div>
           <div className="text-slate-500 text-xs mt-1">{event.teamScored}</div>
+          <div className="text-slate-600 text-xs mt-1">
+            🕐 {event.kickoff}
+          </div>
 
           {/* Expanded details */}
           {isExpanded && <ExpandedDetails event={event} />}
