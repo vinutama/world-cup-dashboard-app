@@ -110,12 +110,12 @@
 **Milestone:** One-command local startup works
 
 ### Task 5.2 — End-to-End Testing
-- [ ] Write 3 E2E tests covering the three user stories:
-  1. Browse tournments → filter by year → select a tournament
+- [x] Write 3 E2E tests covering the three user stories:
+  1. Browse tournaments → filter by year → select a tournament
   2. View matches for a selected tournament
   3. Click a match → view match details → navigate back
-- [ ] Verify flow via Docker Compose (frontend + backend together)
-- [ ] Add E2E step to CI pipeline
+- [x] Verify flow via Docker Compose (frontend + backend together) — 22/22 tests pass
+- [x] Add E2E step to CI pipeline — Docker build/boot + Playwright step
 
 **Estimated effort:** Small
 **Dependencies:** Tasks 5.1, 3.1, 4.4
@@ -145,7 +145,7 @@
 **Estimated effort:** Small
 **Dependencies:** Tasks 5.3, 5.1
 
-**Milestone (Phase 5):** MVP complete, documented, and releasable
+**Status:** 🟢 Phase 5.2 done — 5.3 (Self-Review) pending
 
 ---
 
