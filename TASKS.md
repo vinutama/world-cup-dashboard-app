@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟢 Phase 6.4a done — 6.4b pending
+**Status:** 🟢 Phase 6.4b done — 6.4c pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -322,10 +322,9 @@ type TimelineEvent struct {
 **Dependencies:** Task 6.3b
 
 ### Task 6.4b — Sticky Progress Bar
-- [ ] Add a sticky top progress bar tracking scroll position through the timeline
-- [ ] Data attribute on each `match_day` section to calculate completion %
-- [ ] Style: `h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 fixed top-0 left-0 transition-all duration-150`
-- [ ] Current match day label updates as user scrolls
+- [x] Fixed gradient bar (`h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600`) tracking scroll %
+- [x] Current match day label + % updates on scroll (top-right floating)
+- [x] Lightweight: passive scroll listener, zero external deps
 
 **Estimated effort:** Small
 **Dependencies:** Task 6.4a
