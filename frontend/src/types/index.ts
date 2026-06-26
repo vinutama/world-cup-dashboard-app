@@ -42,3 +42,5 @@ export interface MatchWithIndex {
   match: Match;
   original_index: number;
 }
+
+export type { TimelineEvent, GoalAvalancheResponse } from './goalAvalanche';
