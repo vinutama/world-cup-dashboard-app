@@ -66,7 +66,11 @@ export default function Matches() {
         <button
           onClick={toggleSort}
           className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
-          title={sortOrder === 'asc' ? 'Sorted ascending — click to sort descending' : 'Sorted descending — click to sort ascending'}
+          title={
+            sortOrder === 'asc'
+              ? 'Sorted ascending — click to sort descending'
+              : 'Sorted descending — click to sort ascending'
+          }
         >
           <svg
             className={`h-4 w-4 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`}
@@ -75,15 +79,17 @@ export default function Matches() {
             stroke="currentColor"
             strokeWidth={2}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
+            />
           </svg>
           <span className="hidden sm:inline">Date</span>
         </button>
       </div>
 
-      {matches.length === 0 && (
-        <p className="py-8 text-center text-slate-500">No matches found.</p>
-      )}
+      {matches.length === 0 && <p className="py-8 text-center text-slate-500">No matches found.</p>}
 
       <div className="flex flex-col gap-3">
         {matches.map(({ match: m, original_index }) => {

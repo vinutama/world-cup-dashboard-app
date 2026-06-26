@@ -10,10 +10,7 @@ function TimelineBar({ minute }: { minute: number }) {
       <div className="text-xs text-slate-500 mb-1">Match timeline</div>
       <div className="relative h-2 bg-slate-700 rounded-full overflow-hidden">
         {/* Progress track */}
-        <div
-          className="h-full bg-cyan-800/40 rounded-full"
-          style={{ width: `${pct}%` }}
-        />
+        <div className="h-full bg-cyan-800/40 rounded-full" style={{ width: `${pct}%` }} />
         {/* Goal marker */}
         <div
           className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]"
@@ -71,9 +68,7 @@ function TimelineCard({
       style={{ transitionDelay: `${idx * 50}ms` }}
     >
       {/* Card */}
-      <div
-        className={`w-5/12 ${isRight ? 'text-right pr-8' : 'text-left pl-8'}`}
-      >
+      <div className={`w-5/12 ${isRight ? 'text-right pr-8' : 'text-left pl-8'}`}>
         <div
           onClick={onToggle}
           className={`relative inline-block bg-white/5 backdrop-blur-md border rounded-xl p-4 shadow-xl text-left cursor-pointer select-none transition-all duration-300 hover:bg-white/10 ${
@@ -95,9 +90,7 @@ function TimelineCard({
           )}
 
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-2xl font-bold text-cyan-400">
-              {event.minute}&prime;
-            </span>
+            <span className="text-2xl font-bold text-cyan-400">{event.minute}&prime;</span>
             {event.isClustered && (
               <span className="text-xs font-bold text-orange-400 bg-orange-400/10 px-2 py-0.5 rounded-full">
                 CHAOS
@@ -108,9 +101,7 @@ function TimelineCard({
           <div className="text-slate-300 text-sm">
             {event.teamA} {event.currentScore} {event.teamB}
           </div>
-          <div className="text-slate-500 text-xs mt-1">
-            {event.teamScored}
-          </div>
+          <div className="text-slate-500 text-xs mt-1">{event.teamScored}</div>
 
           {/* Expanded details */}
           {isExpanded && <ExpandedDetails event={event} />}
@@ -121,9 +112,7 @@ function TimelineCard({
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
         <div
           className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${
-            event.isClustered
-              ? 'bg-orange-400 border-orange-400'
-              : 'bg-cyan-400 border-cyan-400'
+            event.isClustered ? 'bg-orange-400 border-orange-400' : 'bg-cyan-400 border-cyan-400'
           } ${isExpanded ? 'scale-150 shadow-[0_0_10px_rgba(6,182,212,0.6)]' : ''}`}
         />
       </div>
@@ -245,9 +234,7 @@ export default function GoalAvalanche() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="text-cyan-400 text-xl animate-pulse">
-          Loading goal avalanche...
-        </div>
+        <div className="text-cyan-400 text-xl animate-pulse">Loading goal avalanche...</div>
       </div>
     );
   }
@@ -261,17 +248,13 @@ export default function GoalAvalanche() {
     );
   }
 
-  const days = Object.keys(timeline).sort(
-    (a, b) => parseInt(a) - parseInt(b)
-  );
+  const days = Object.keys(timeline).sort((a, b) => parseInt(a) - parseInt(b));
 
   // Empty state
   if (days.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="text-slate-400 text-xl">
-          No goal data available for {year}
-        </div>
+        <div className="text-slate-400 text-xl">No goal data available for {year}</div>
       </div>
     );
   }
@@ -282,9 +265,7 @@ export default function GoalAvalanche() {
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Goal Avalanche
-            </h1>
+            <h1 className="text-4xl font-bold text-white mb-2">Goal Avalanche</h1>
             <p className="text-slate-400">
               FIFA World Cup {year} &mdash; All goals in chronological order
             </p>

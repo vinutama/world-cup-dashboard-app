@@ -29,8 +29,8 @@ func (s *MatchService) GetGoalAvalanche(ctx context.Context, year int) ([]model.
 		// Combine goals from both teams and sort by effective minute
 		// so current_score is computed in true chronological order.
 		type scoredGoal struct {
-			goal       model.Goal
-			isTeam1    bool
+			goal    model.Goal
+			isTeam1 bool
 		}
 		allGoals := make([]scoredGoal, 0, len(m.Goals1)+len(m.Goals2))
 		for _, g := range m.Goals1 {

@@ -284,10 +284,10 @@ func TestGetTournamentMatches(t *testing.T) {
 
 	var result struct {
 		Matches    []matchResponse `json:"matches"`
-		Page       int           `json:"page"`
-		PerPage    int           `json:"per_page"`
-		Total      int           `json:"total"`
-		TotalPages int           `json:"total_pages"`
+		Page       int             `json:"page"`
+		PerPage    int             `json:"per_page"`
+		Total      int             `json:"total"`
+		TotalPages int             `json:"total_pages"`
 	}
 	json.NewDecoder(rec.Body).Decode(&result)
 	if len(result.Matches) != 2 {

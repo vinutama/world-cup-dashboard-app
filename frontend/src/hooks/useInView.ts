@@ -5,7 +5,7 @@ interface UseInViewOptions extends IntersectionObserverInit {
 }
 
 export function useInView<T extends HTMLElement = HTMLDivElement>(
-  options: UseInViewOptions = {}
+  options: UseInViewOptions = {},
 ): { ref: RefObject<T | null>; inView: boolean } {
   const ref = useRef<T | null>(null);
   const [inView, setInView] = useState(true);
@@ -24,7 +24,7 @@ export function useInView<T extends HTMLElement = HTMLDivElement>(
           setInView(false);
         }
       },
-      { threshold, ...rest }
+      { threshold, ...rest },
     );
 
     observer.observe(el);

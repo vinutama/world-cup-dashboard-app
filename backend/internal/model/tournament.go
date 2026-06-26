@@ -10,22 +10,22 @@ type Tournament struct {
 
 // Match represents a single football match in a tournament.
 type Match struct {
-	Round   string `json:"round"`
-	Date    string `json:"date"`
-	Time    string `json:"time,omitempty"`
-	Team1   string `json:"team1"`
-	Team2   string `json:"team2"`
-	Score   Score  `json:"score"`
-	Goals1  []Goal `json:"goals1,omitempty"`
-	Goals2  []Goal `json:"goals2,omitempty"`
-	Group   string `json:"group,omitempty"`
-	Ground  string `json:"ground,omitempty"`
+	Round  string `json:"round"`
+	Date   string `json:"date"`
+	Time   string `json:"time,omitempty"`
+	Team1  string `json:"team1"`
+	Team2  string `json:"team2"`
+	Score  Score  `json:"score"`
+	Goals1 []Goal `json:"goals1,omitempty"`
+	Goals2 []Goal `json:"goals2,omitempty"`
+	Group  string `json:"group,omitempty"`
+	Ground string `json:"ground,omitempty"`
 }
 
 // Score holds the full-time and half-time scores.
 type Score struct {
-	FullTime   [2]int `json:"ft"`
-	HalfTime   [2]int `json:"ht"`
+	FullTime [2]int `json:"ft"`
+	HalfTime [2]int `json:"ht"`
 }
 
 // Goal represents a goal event in a match.

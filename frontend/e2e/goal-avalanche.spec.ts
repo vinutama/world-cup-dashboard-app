@@ -31,13 +31,19 @@ test.describe('Goal Avalanche', () => {
   test('shows match day section headers', async ({ page }) => {
     await page.goto('/goal-avalanche/2018');
     // Use heading role with exact name to avoid strict mode
-    await expect(page.getByRole('heading', { name: 'Day 1(5 goals)' })).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole('heading', { name: 'Day 2(8 goals)' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('heading', { name: 'Day 1(5 goals)' })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByRole('heading', { name: 'Day 2(8 goals)' })).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test('shows goal count per day', async ({ page }) => {
     await page.goto('/goal-avalanche/2018');
-    await expect(page.getByRole('heading', { name: 'Day 1(5 goals)' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Day 1(5 goals)' })).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('expand card shows full-time score and round', async ({ page }) => {
