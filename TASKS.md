@@ -196,7 +196,7 @@ NEXT TASK ←   UPDATE DOCS ←   RETEST  ←   FIX ISSUES  ←  CREATE ISSUES
 ## 🎯 Objective
 Parse the openfootball/worldcup.json dataset to extract every goal event, scoring minute, and match day, then render them into a cinematic dark-mode vertical timeline. New Go backend endpoint + React/Tailwind frontend submodule.
 
-**Status:** 🟢 6.1a & 6.1b deployed — 6.1c (Chaos Zone) pending
+**Status:** 🟢 Phase 6.1 complete (6.1a, 6.1b, 6.1c deployed) — Phase 6.2 (TS types, frontend skeleton) pending
 **Dependencies:** Phase 4 (Frontend UI) — App shell, routing, and API connection must be operational.
 
 > **Architecture Decision:** The goal avalanche data is derived from the existing worldcup.json through server-side aggregation. No new raw data fetch is required — the handler transforms data already cached by `MatchService`.
@@ -242,10 +242,11 @@ type TimelineEvent struct {
 **Dependencies:** Task 6.1a
 
 ### Task 6.1c — Chaos Zone Detection
-- [ ] Write a function that scans the sorted timeline and detects "Chaos Zones"
-- [ ] **Chaos Zone definition:** Windows where multiple goals are scored across *different* simultaneous matches within a short real-world timeframe (≤3 minutes apart on the same match day)
-- [ ] Mark matching `TimelineEvent` entries with `isClustered = true`
-- [ ] Return timeline grouped by `Match Day` → `map[int][]TimelineEvent` so the frontend receives a clean, categorized structure
+- [x] Scan sorted timeline and detect clusters: multiple goals from different matches ≤3 min apart → `isClustered = true`
+- [x] Same-match goals ≤3 min apart → NOT clustered
+- [x] Cross-day events → never clustered
+- [x] Return timeline grouped by match day: `{"timeline": {"1": [...], "2": [...], ...}}`
+- [x] Write 4 chaos zone unit tests (9 total avalanche tests)
 
 **Estimated effort:** Small
 **Dependencies:** Task 6.1b
