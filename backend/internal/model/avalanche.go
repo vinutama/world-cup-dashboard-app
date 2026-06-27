@@ -8,6 +8,7 @@ type TimelineEvent struct {
 	Scorer       string `json:"scorer"`
 	TeamScored   string `json:"teamScored"`
 	Minute       int    `json:"minute"`
+	MinuteLabel  string `json:"minuteLabel"`
 	MatchDay     int    `json:"matchDay"`
 	CurrentScore string `json:"currentScore"`
 	IsClustered  bool   `json:"isClustered"`

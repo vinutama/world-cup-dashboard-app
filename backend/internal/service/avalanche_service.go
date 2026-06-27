@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/mkhevin/world-cup-dashboard/backend/internal/model"
@@ -62,6 +63,7 @@ func (s *MatchService) GetGoalAvalanche(ctx context.Context, year int) ([]model.
 				Scorer:       scorerName(sg.goal),
 				TeamScored:   teamScored,
 				Minute:       effectiveMinute(sg.goal),
+				MinuteLabel:  minuteLabel(sg.goal),
 				MatchDay:     matchDays[matchIdx],
 				CurrentScore: fmt.Sprintf("%d-%d", team1Goals, team2Goals),
 				IsClustered:  false,
@@ -128,6 +130,16 @@ func scorerName(g model.Goal) string {
 		return g.Name
 	}
 	return "N/A"
+}
+
+// minuteLabel returns the human-readable minute display string.
+// If the goal has an offset (stoppage time), shows "45+3" format.
+// Otherwise shows just the minute, e.g. "7".
+func minuteLabel(g model.Goal) string {
+	if g.Offset != nil && *g.Offset > 0 {
+		return fmt.Sprintf("%d+%d", g.Minute, *g.Offset)
+	}
+	return strconv.Itoa(g.Minute)
 }
 
 // effectiveMinute returns the goal minute including injury‑time offset.
