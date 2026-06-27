@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { TimelineEvent, GoalAvalancheResponse } from '../types';
 import { useInView } from '../hooks/useInView';
+import Dropdown from '../components/Dropdown';
 
 interface ChaosZone {
   day: string;
@@ -451,17 +452,12 @@ export default function GoalAvalanche() {
               FIFA World Cup {year} &mdash; All goals in chronological order
             </p>
           </div>
-          <select
+          <Dropdown
+            label="Select year"
+            options={years.map((y) => ({ value: String(y), label: String(y) }))}
             value={year}
-            onChange={(e) => navigate(`/goal-avalanche/${e.target.value}`)}
-            className="bg-slate-800 border border-slate-600 text-slate-200 rounded-lg px-3 py-2 text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => navigate(`/goal-avalanche/${val}`)}
+          />
         </div>
 
         {days.map((day) => (
