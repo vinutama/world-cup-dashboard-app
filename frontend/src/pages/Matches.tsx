@@ -15,20 +15,10 @@ export default function Matches() {
   const [page, setPage] = useState(initialPage);
   const [sortOrder, setSortOrder] = useState<SortOrder>(initialSort);
   const [totalPages, setTotalPages] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const perPage = 5;
 
-  // Client-side case-insensitive filter by nation
-  const filteredMatches = matches.filter((m) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      m.match.team1.toLowerCase().includes(q) ||
-      m.match.team2.toLowerCase().includes(q)
-    );
-  });
-
-  // Fetch paginated matches with backend sort
+  // Fetch paginated matches with backend sort + optional nation search
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -36,7 +26,12 @@ export default function Matches() {
     const controller = new AbortController();
     const signal = controller.signal;
 
-    fetch(`/api/tournaments/${id}/matches?page=${page}&per_page=${perPage}&sort=${sortOrder}`, { signal })
+    let url = `/api/tournaments/${id}/matches?page=${page}&per_page=${perPage}&sort=${sortOrder}`;
+    if (searchTerm.trim()) {
+      url += `&q=${encodeURIComponent(searchTerm.trim())}`;
+    }
+
+    fetch(url, { signal })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch matches');
         return res.json() as Promise<PaginatedMatches>;
@@ -53,7 +48,7 @@ export default function Matches() {
       });
 
     return () => controller.abort();
-  }, [id, page, sortOrder]);
+  }, [id, page, sortOrder, searchTerm]);
 
   const goToPage = (p: number) => {
     const clamped = Math.max(1, Math.min(p, totalPages));
@@ -93,8 +88,8 @@ export default function Matches() {
         <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by nation..."
             className="min-h-[44px] flex-1 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 placeholder-slate-500 transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:min-w-[200px]"
           />
@@ -126,14 +121,14 @@ export default function Matches() {
         </div>
       </div>
 
-      {filteredMatches.length === 0 && (
+      {matches.length === 0 && (
         <p className="py-8 text-center text-slate-500">
-          {searchQuery ? `No matches found for "${searchQuery}".` : 'No matches found.'}
+          {searchTerm ? `No matches found for "${searchTerm}".` : 'No matches found.'}
         </p>
       )}
 
       <div className="flex flex-col gap-3">
-        {filteredMatches.map(({ match: m, original_index }) => {
+        {matches.map(({ match: m, original_index }) => {
           const matchId = `${id}-${original_index}`;
           return (
             <Link
