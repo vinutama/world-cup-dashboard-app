@@ -68,7 +68,7 @@ After MVP completion, the following extensions are planned:
   - Sticky progress bar tracking scroll depth
 
 ---
-
+---
 # Success Criteria
 
 Functional:
@@ -84,3 +84,113 @@ Engineering:
 - Tests pass
 - Agent can create GitHub Issues
 - Agent can review its own work
+
+---
+
+# Pulse (Oracle) Prediction Engine — Phases 7 & 8
+
+## 🎯 Module Overview
+Build the Pulse (or **Oracle**) prediction engine. To maintain strict engineering discipline, this module is bifurcated into two strictly isolated phases:
+
+* PHASE 7: Pure Backend Infrastructure (Docker, Golang, Redis, API Ingestion, Caching).
+* PHASE 8: Pure Frontend Presentation (React TSX, Tailwind CSS, Cyberpunk Glassmorphism, Animations).
+
+CRITICAL HERMES RULE: Do not write a single line of React code for Phase 8 until all Phase 7 Golang endpoints return verified 200 OK JSON payloads via terminal curl tests.
+
+---
+
+# PHASE 7: BACKEND ENGINE & CACHING (Golang + Docker)
+
+### 7.1 Docker Compose Infrastructure
+* [ ] Open docker-compose.yml.
+* [ ] Add the persistent Redis container:
+   redis:
+    image: redis:7-alpine
+    container_name: worldcup_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+  * [ ] Map the redis_data volume at the bottom of the compose file.
+* [ ] Inject REDIS_ADDR=redis:6379 into the Golang backend service environment.
+
+### 7.2 Golang Redis Client Initialization
+* [ ] Run go get github.com/redis/go-redis/v9.
+* [ ] In Go's startup config, initialize the Redis client using os.Getenv("REDIS_ADDR").
+* [ ] Implement a Ping() check on boot; if Redis fails to respond, log a fatal error.
+
+### 7.3 Global Leaderboard Route (`GET /api/v1/predictions/global`)
+* [ ] Create handler proxying Polymarket: https://gamma-api.polymarket.com/markets?slug=winner-of-2026-fifa-world-cup
+* [ ] Parse outcomes (Teams) and outcomePrices (Odds).
+* [ ] Sort descending by price. Take the top 10.
+* [ ] Transform float string prices (e.g., `"0.184"`) into clean integer percentages (`18`).
+* [ ] Return JSON: [{"team": "France", "probability": 18}, ...]
+
+### 7.4 Match Oracle Route (`GET /api/v1/predictions/match/{fixture_id}`)
+* [ ] Implement the Cache-Aside pattern:
+    1. Check Redis key match:oracle:{fixture_id}.
+    2. Hit: Return cached raw JSON immediately.
+    3. Miss: Fetch live data from API-Football /predictions?fixture={fixture_id}.
+    4. Store response in Redis: rdb.Set(ctx, key, payload, 6 * time.Hour).
+    5. Return JSON payload to client.
+
+### 7.5 Backend Verification Gate (Hard Stop)
+* [ ] Spin up Docker Compose (`docker compose up --build -d`).
+* [ ] Execute curl http://localhost:8080/api/v1/predictions/global and verify a valid JSON array.
+* [ ] STOP AGENT EXECUTION HERE. Report backend completion to the user. Do not proceed to Phase 8 automatically.
+
+---
+
+# PHASE 8: THE FANCY FRONTEND (React TSX + Tailwind CSS)
+
+*Prerequisite: Phase 7 terminal curl tests must be verified.*
+
+### 8.1 TypeScript Contracts (`src/types/oracle.ts`)
+* [ ] Define exact types matching the Go backend's JSON output:
+   export interface GlobalFavorite {
+    team: string;
+    probability: number;
+  }
+
+  export interface MatchOracle {
+    fixtureId: string;
+    winnerAdvice: string;
+    percentHome: number;
+    percentDraw: number;
+    percentAway: number;
+  }
+  
+### 8.2 Canvas & Layout Architecture
+* [ ] Create src/components/PulseDashboard.tsx.
+* [ ] Apply baseline deep space styling: min-h-screen bg-[#09090b] text-zinc-100 p-6 font-sans.
+* [ ] Create the responsive 12-column grid: grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto.
+* [ ] Inject the ambient cyberpunk lighting orb:
+   <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none -z-10" />
+  
+### 8.3 Left Viewport: The Wisdom Wheel (Lg:col-span-7)
+* [ ] Fetch data from /api/v1/predictions/global.
+* [ ] Render glassmorphic rows: 
+  bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-xl p-4 mb-3 flex items-center justify-between hover:border-cyan-500/50 hover:bg-zinc-800/40 transition-all duration-300
+* [ ] Build the Neon Glow Progress Bar:
+  * Outer track: w-48 h-2 bg-zinc-800/80 rounded-full overflow-hidden p-[1px]
+* Inner fill: h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 rounded-full shadow-[0_0_12px_rgba(6,182,212,0.8)] transition-all duration-1000 ease-out *(Bind width via inline style)*.
+* [ ] Give ranks #1, #2, and #3 a metallic gold/silver/bronze text gradient: bg-gradient-to-br from-amber-300 to-yellow-600 bg-clip-text text-transparent font-black.
+
+### 8.4 Right Viewport: The Match Oracle (Lg:col-span-5)
+* [ ] Fetch data from /api/v1/predictions/match/{next_fixture_id}.
+* [ ] Render main card: bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-6 rounded-2xl relative overflow-hidden shadow-2xl.
+* [ ] Add a top Cyber Scanner accent line: 
+   <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse" />
+  * [ ] Display the recommendation advice in a glowing callout hero box: 
+  border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono text-lg p-4 rounded-xl text-center mb-6 shadow-[0_0_20px_rgba(16,185,129,0.15)]
+* [ ] Build the 3-Way Probability Bar:
+   <div className="flex h-4 w-full rounded-full overflow-hidden gap-[2px] bg-zinc-950 p-[2px] border border-zinc-800">
+    <div style={{ width: `${data.percentHome}%` }} className="bg-emerald-500 h-full rounded-l-full shadow-[0_0_8px_#10b981]" />
+    <div style={{ width: `${data.percentDraw}%` }} className="bg-amber-500 h-full shadow-[0_0_8px_#f59e0b]" />
+    <div style={{ width: `${data.percentAway}%` }} className="bg-rose-500 h-full rounded-r-full shadow-[0_0_8px_#f43f5e]" />
+  </div>
+  
+### 8.5 Polish & Loading States
+* [ ] Create matching glassmorphic React Skeleton placeholder blocks for the initial isLoading state so the page doesn't jump.
+* [ ] Add a subtle entry transition to the master wrapper (`animate-fade-in`).
