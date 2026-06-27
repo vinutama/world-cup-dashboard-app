@@ -16,7 +16,16 @@ export default function Matches() {
   const [sortOrder, setSortOrder] = useState<SortOrder>(initialSort);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const perPage = 5;
+
+  // Debounce search term — 300ms after user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Fetch paginated matches with backend sort + optional nation search
   useEffect(() => {
@@ -27,8 +36,8 @@ export default function Matches() {
     const signal = controller.signal;
 
     let url = `/api/tournaments/${id}/matches?page=${page}&per_page=${perPage}&sort=${sortOrder}`;
-    if (searchTerm.trim()) {
-      url += `&q=${encodeURIComponent(searchTerm.trim())}`;
+    if (debouncedSearchTerm.trim()) {
+      url += `&q=${encodeURIComponent(debouncedSearchTerm.trim())}`;
     }
 
     fetch(url, { signal })
@@ -48,7 +57,7 @@ export default function Matches() {
       });
 
     return () => controller.abort();
-  }, [id, page, sortOrder, searchTerm]);
+  }, [id, page, sortOrder, debouncedSearchTerm]);
 
   const goToPage = (p: number) => {
     const clamped = Math.max(1, Math.min(p, totalPages));
@@ -70,7 +79,6 @@ export default function Matches() {
     });
   };
 
-  if (loading) return <div className="py-12 text-center text-slate-400">Loading matches...</div>;
   if (error) return <div className="py-12 text-center text-red-400">Error: {error}</div>;
 
   return (
@@ -121,9 +129,15 @@ export default function Matches() {
         </div>
       </div>
 
-      {matches.length === 0 && (
+      {loading && matches.length === 0 && (
+        <div className="py-12 text-center text-slate-400">Loading matches...</div>
+      )}
+
+      {!loading && matches.length === 0 && (
         <p className="py-8 text-center text-slate-500">
-          {searchTerm ? `No matches found for "${searchTerm}".` : 'No matches found.'}
+          {debouncedSearchTerm
+            ? `No matches found for "${debouncedSearchTerm}".`
+            : 'No matches found.'}
         </p>
       )}
 
@@ -158,6 +172,10 @@ export default function Matches() {
           );
         })}
       </div>
+
+      {loading && matches.length > 0 && (
+        <div className="mt-4 text-center text-sm text-slate-500">Updating results...</div>
+      )}
 
       {totalPages > 1 && (
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
