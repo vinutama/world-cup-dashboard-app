@@ -22,8 +22,8 @@ func main() {
 	yearRepo := repository.NewYearRepo(httpClient)
 	matchRepo := repository.NewMatchRepo(httpClient)
 
-	yearSvc := service.NewYearService(yearRepo)
 	matchSvc := service.NewMatchService(yearRepo, matchRepo)
+	yearSvc := service.NewYearService(matchSvc)
 
 	h := handler.New(yearSvc, matchSvc, logger)
 
