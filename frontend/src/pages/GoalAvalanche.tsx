@@ -269,21 +269,24 @@ function DayJumpNav({
   onJumpToDay: (day: string) => void;
 }) {
   return (
-    <div className="fixed left-6 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1">
-      {days.map((day) => (
-        <button
-          key={day}
-          onClick={() => onJumpToDay(day)}
-          className={`min-h-[28px] min-w-[28px] flex items-center justify-center rounded-full text-xs font-mono transition-all ${
-            currentDay === day
-              ? 'bg-cyan-500 text-white scale-110 shadow-[0_0_8px_rgba(6,182,212,0.6)]'
-              : 'bg-slate-800/60 text-slate-500 hover:bg-slate-700 hover:text-slate-300 border border-slate-700/50'
-          }`}
-          title={`Jump to Day ${day}`}
-        >
-          {day}
-        </button>
-      ))}
+    <div className="fixed left-4 md:left-6 top-1/2 -translate-y-1/2 z-40 max-h-[65vh] overflow-y-auto scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-slate-700">
+      {/* Scroll fade overlay at bottom */}
+      <div className="relative flex flex-col gap-1 py-2">
+        {days.map((day) => (
+          <button
+            key={day}
+            onClick={() => onJumpToDay(day)}
+            className={`min-h-[30px] min-w-[30px] flex items-center justify-center rounded-full text-xs font-mono transition-all shrink-0 ${
+              currentDay === day
+                ? 'bg-cyan-500 text-white scale-110 shadow-[0_0_8px_rgba(6,182,212,0.6)]'
+                : 'bg-slate-800/60 text-slate-500 hover:bg-slate-700 hover:text-slate-300 border border-slate-700/50'
+            }`}
+            title={`Jump to Day ${day}`}
+          >
+            {day}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
