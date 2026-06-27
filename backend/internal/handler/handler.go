@@ -170,20 +170,30 @@ func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 		allMatches = sorted
 	}
 
-	// Apply optional case-insensitive search/filter by nation (team name)
-	if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {
-		qLower := strings.ToLower(q)
-		filtered := make([]model.Match, 0, len(allMatches))
-		for _, m := range allMatches {
-			if strings.Contains(strings.ToLower(m.Team1), qLower) ||
-				strings.Contains(strings.ToLower(m.Team2), qLower) {
-				filtered = append(filtered, m)
-			}
-		}
-		allMatches = filtered
+	// Apply optional case-insensitive search/filter by nation (team name).
+	// Preserve the original index from the FULL match array so match detail links
+	// (e.g. /matches/2018-5) resolve correctly regardless of filtering.
+	type matchWithOrigIdx struct {
+		match   model.Match
+		origIdx int
 	}
 
-	total := len(allMatches)
+	srcMatches := make([]matchWithOrigIdx, 0, len(allMatches))
+	if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {
+		qLower := strings.ToLower(q)
+		for i, m := range allMatches {
+			if strings.Contains(strings.ToLower(m.Team1), qLower) ||
+				strings.Contains(strings.ToLower(m.Team2), qLower) {
+				srcMatches = append(srcMatches, matchWithOrigIdx{match: m, origIdx: i})
+			}
+		}
+	} else {
+		for i, m := range allMatches {
+			srcMatches = append(srcMatches, matchWithOrigIdx{match: m, origIdx: i})
+		}
+	}
+
+	total := len(srcMatches)
 	totalPages := (total + perPage - 1) / perPage
 	if totalPages == 0 {
 		totalPages = 1
@@ -210,14 +220,16 @@ func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 	// Build the response with original_index for each match
 	// original_index always refers to the match's position in the ASCENDING array
 	// so match detail links work regardless of sort order.
+	// When ?q= filtering is active, original_index comes from the preserved
+	// unfiltered array position (srcMatches[*].origIdx).
 	matches := make([]matchResponse, 0, end-start)
-	for i, m := range allMatches[start:end] {
-		originalIndex := start + i
+	for _, mwi := range srcMatches[start:end] {
+		originalIndex := mwi.origIdx
 		if sortOrder == "desc" {
-			originalIndex = total - 1 - originalIndex
+			originalIndex = len(allMatches) - 1 - originalIndex
 		}
 		matches = append(matches, matchResponse{
-			Match:         m,
+			Match:         mwi.match,
 			OriginalIndex: originalIndex,
 		})
 	}
