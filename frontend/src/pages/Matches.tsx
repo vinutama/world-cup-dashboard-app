@@ -21,7 +21,11 @@ export default function Matches() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    fetch(`/api/tournaments/${id}/matches?page=${page}&per_page=${perPage}&sort=${sortOrder}`)
+
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    fetch(`/api/tournaments/${id}/matches?page=${page}&per_page=${perPage}&sort=${sortOrder}`, { signal })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch matches');
         return res.json() as Promise<PaginatedMatches>;
@@ -32,9 +36,12 @@ export default function Matches() {
         setLoading(false);
       })
       .catch((err: Error) => {
+        if (err.name === 'AbortError') return;
         setError(err.message);
         setLoading(false);
       });
+
+    return () => controller.abort();
   }, [id, page, sortOrder]);
 
   const goToPage = (p: number) => {
