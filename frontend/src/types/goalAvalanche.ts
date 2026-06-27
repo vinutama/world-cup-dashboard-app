@@ -13,6 +13,7 @@ export interface TimelineEvent {
   scorer: string;
   teamScored: string;
   minute: number;
+  minuteLabel: string;
   matchDay: number;
   currentScore: string;
   isClustered: boolean;

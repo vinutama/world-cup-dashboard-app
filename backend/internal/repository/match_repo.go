@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/mkhevin/world-cup-dashboard/backend/internal/model"
 )
@@ -112,16 +113,29 @@ func (r *MatchRepo) FetchTournament(ctx context.Context, year int) (*model.Tourn
 
 func convertGoal(rg rawGoal) model.Goal {
 	var minute int
+	var offset *int
 	switch v := rg.Minute.(type) {
 	case float64:
 		minute = int(v)
+		offset = rg.Offset
 	case string:
-		minute, _ = strconv.Atoi(v)
+		// Handle formats like "45", "45+3", "90+5", "120+1"
+		if parts := strings.SplitN(v, "+", 2); len(parts) == 2 {
+			if m, err := strconv.Atoi(parts[0]); err == nil {
+				minute = m
+			}
+			if o, err := strconv.Atoi(parts[1]); err == nil && o > 0 {
+				offset = &o
+			}
+		} else {
+			minute, _ = strconv.Atoi(v)
+			offset = rg.Offset
+		}
 	}
 	return model.Goal{
 		Name:    rg.Name,
 		Minute:  minute,
-		Offset:  rg.Offset,
+		Offset:  offset,
 		OwnGoal: rg.OwnGoal,
 		Penalty: rg.Penalty,
 	}
