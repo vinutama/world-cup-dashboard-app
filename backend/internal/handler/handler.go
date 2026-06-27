@@ -170,6 +170,19 @@ func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 		allMatches = sorted
 	}
 
+	// Apply optional case-insensitive search/filter by nation (team name)
+	if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {
+		qLower := strings.ToLower(q)
+		filtered := make([]model.Match, 0, len(allMatches))
+		for _, m := range allMatches {
+			if strings.Contains(strings.ToLower(m.Team1), qLower) ||
+				strings.Contains(strings.ToLower(m.Team2), qLower) {
+				filtered = append(filtered, m)
+			}
+		}
+		allMatches = filtered
+	}
+
 	total := len(allMatches)
 	totalPages := (total + perPage - 1) / perPage
 	if totalPages == 0 {
