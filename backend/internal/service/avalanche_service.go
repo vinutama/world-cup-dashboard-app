@@ -157,14 +157,18 @@ const chaosWindow = 3
 // whose minutes are ≤3 apart across *different* matches on the same (match day, kickoff).
 // This ensures only goals from *concurrently-played* matches can form a chaos zone.
 func detectChaosZones(events []model.TimelineEvent) {
-	// Group by (match day, kickoff) — chaos zones don't cross days or kickoff slots
+	// Group by (match day, kickoff) — chaos zones don't cross days or kickoff slots.
+	// When kickoff data is missing (empty string), treat each event as its own group
+	// so goals without kickoff data are never falsely flagged as chaos.
 	start := 0
 	for start < len(events) {
 		day := events[start].MatchDay
 		ko := events[start].Kickoff
 		end := start
-		for end+1 < len(events) && events[end+1].MatchDay == day && events[end+1].Kickoff == ko {
-			end++
+		if ko != "" {
+			for end+1 < len(events) && events[end+1].MatchDay == day && events[end+1].Kickoff == ko {
+				end++
+			}
 		}
 		group := events[start : end+1]
 
