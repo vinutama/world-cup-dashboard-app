@@ -15,7 +15,18 @@ export default function Matches() {
   const [page, setPage] = useState(initialPage);
   const [sortOrder, setSortOrder] = useState<SortOrder>(initialSort);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const perPage = 5;
+
+  // Client-side case-insensitive filter by nation
+  const filteredMatches = matches.filter((m) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      m.match.team1.toLowerCase().includes(q) ||
+      m.match.team2.toLowerCase().includes(q)
+    );
+  });
 
   // Fetch paginated matches with backend sort
   useEffect(() => {
@@ -79,36 +90,50 @@ export default function Matches() {
       <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold text-white md:text-2xl">World Cup {id} — Matches</h1>
 
-        <button
-          onClick={toggleSort}
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
-          title={
-            sortOrder === 'asc'
-              ? 'Sorted ascending — click to sort descending'
-              : 'Sorted descending — click to sort ascending'
-          }
-        >
-          <svg
-            className={`h-4 w-4 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by nation..."
+            className="min-h-[44px] flex-1 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 placeholder-slate-500 transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:min-w-[200px]"
+          />
+
+          <button
+            onClick={toggleSort}
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:border-slate-500 hover:text-white"
+            title={
+              sortOrder === 'asc'
+                ? 'Sorted ascending — click to sort descending'
+                : 'Sorted descending — click to sort ascending'
+            }
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
-            />
-          </svg>
-          <span className="hidden sm:inline">Date</span>
-        </button>
+            <svg
+              className={`h-4 w-4 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
+              />
+            </svg>
+            <span className="hidden sm:inline">Date</span>
+          </button>
+        </div>
       </div>
 
-      {matches.length === 0 && <p className="py-8 text-center text-slate-500">No matches found.</p>}
+      {filteredMatches.length === 0 && (
+        <p className="py-8 text-center text-slate-500">
+          {searchQuery ? `No matches found for "${searchQuery}".` : 'No matches found.'}
+        </p>
+      )}
 
       <div className="flex flex-col gap-3">
-        {matches.map(({ match: m, original_index }) => {
+        {filteredMatches.map(({ match: m, original_index }) => {
           const matchId = `${id}-${original_index}`;
           return (
             <Link
