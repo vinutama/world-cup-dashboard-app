@@ -7,6 +7,7 @@ interface ChaosZone {
   day: string;
   startEventIdx: number;
   endEventIdx: number;
+  count: number;
 }
 
 function TimelineBar({ minute }: { minute: number }) {
@@ -214,44 +215,45 @@ function StickyProgressBar({ days }: { days: string[] }) {
 function ChaosZoneNav({
   chaosZones,
   chaosIndex,
-  onPrev,
-  onNext,
   onJumpToZone,
 }: {
   chaosZones: ChaosZone[];
   chaosIndex: number;
-  onPrev: () => void;
-  onNext: () => void;
   onJumpToZone: (idx: number) => void;
 }) {
   return (
     <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-2">
       {/* Match day quick jump */}
       {chaosZones.length > 0 && (
-        <div className="bg-slate-800/90 backdrop-blur-md border border-orange-400/30 rounded-xl p-3 shadow-xl shadow-orange-500/5">
-          <div className="text-xs text-orange-300 mb-1 font-medium">⚡ Chaos Zones</div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={onPrev}
-              disabled={chaosIndex <= 0}
-              className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg bg-slate-700/80 text-white text-sm hover:bg-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              title="Previous chaos zone"
-            >
-              ◀
-            </button>
-            <span className="text-xs text-slate-400 px-2 min-w-[60px] text-center">
-              {chaosZones.length > 0
-                ? `${chaosIndex + 1}/${chaosZones.length}`
-                : '0/0'}
-            </span>
-            <button
-              onClick={onNext}
-              disabled={chaosIndex >= chaosZones.length - 1}
-              className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg bg-slate-700/80 text-white text-sm hover:bg-slate-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              title="Next chaos zone"
-            >
-              ▶
-            </button>
+        <div className="bg-slate-800/90 backdrop-blur-md border border-orange-400/30 rounded-xl p-3 shadow-xl shadow-orange-500/5 max-w-[200px]">
+          <div className="text-xs text-orange-300 mb-2 font-medium flex items-center gap-2">
+            <span>⚡ Chaos Zones</span>
+            {chaosZones.length > 1 && (
+              <span className="text-slate-500 font-normal">
+                ({chaosIndex + 1}/{chaosZones.length})
+              </span>
+            )}
+          </div>
+
+          {/* Zone list — scrollable for many zones */}
+          <div className="flex flex-col gap-1 max-h-[35vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-600 pr-1">
+            {chaosZones.map((zone, idx) => (
+              <button
+                key={`${zone.day}-${zone.startEventIdx}`}
+                onClick={() => onJumpToZone(idx)}
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-all shrink-0 ${
+                  idx === chaosIndex
+                    ? 'bg-orange-500/20 text-orange-300 border border-orange-400/40'
+                    : 'text-slate-400 hover:bg-slate-700/60 hover:text-slate-300 border border-transparent'
+                }`}
+                title={`Jump to Day ${zone.day} chaos zone`}
+              >
+                <span className="font-mono min-w-[32px]">Day {zone.day}</span>
+                <span className="text-slate-600 text-[10px]">
+                  {zone.count} event{zone.count !== 1 ? 's' : ''}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -321,7 +323,7 @@ export default function GoalAvalanche() {
         while (i + 1 < events.length && events[i + 1].isClustered) {
           i++;
         }
-        zones.push({ day, startEventIdx: startIdx, endEventIdx: i });
+        zones.push({ day, startEventIdx: startIdx, endEventIdx: i, count: i - startIdx + 1 });
         i++;
       }
     }
@@ -338,20 +340,7 @@ export default function GoalAvalanche() {
     }
   }, []);
 
-  const handlePrevChaos = useCallback(() => {
-    const next = Math.max(0, chaosIndex - 1);
-    setChaosIndex(next);
-    const zone = chaosZones[next];
-    if (zone) scrollToEvent(zone.day, zone.startEventIdx);
-  }, [chaosIndex, chaosZones, scrollToEvent]);
-
-  const handleNextChaos = useCallback(() => {
-    const next = Math.min(chaosZones.length - 1, chaosIndex + 1);
-    setChaosIndex(next);
-    const zone = chaosZones[next];
-    if (zone) scrollToEvent(zone.day, zone.startEventIdx);
-  }, [chaosIndex, chaosZones, scrollToEvent]);
-
+  // Remove unused handlers and just keep scrollToEvent
   const handleJumpToDay = useCallback(
     (day: string) => {
       setCurrentDay(day);
@@ -488,8 +477,6 @@ export default function GoalAvalanche() {
         <ChaosZoneNav
           chaosZones={chaosZones}
           chaosIndex={chaosIndex}
-          onPrev={handlePrevChaos}
-          onNext={handleNextChaos}
           onJumpToZone={(idx) => {
             setChaosIndex(idx);
             const zone = chaosZones[idx];
