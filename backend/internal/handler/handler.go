@@ -188,9 +188,14 @@ func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build the response with original_index for each match
+	// original_index always refers to the match's position in the ASCENDING array
+	// so match detail links work regardless of sort order.
 	matches := make([]matchResponse, 0, end-start)
 	for i, m := range allMatches[start:end] {
 		originalIndex := start + i
+		if sortOrder == "desc" {
+			originalIndex = total - 1 - originalIndex
+		}
 		matches = append(matches, matchResponse{
 			Match:         m,
 			OriginalIndex: originalIndex,
@@ -204,7 +209,7 @@ func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 		"total":       total,
 		"total_pages": totalPages,
 	})
-}
+	}
 
 // parsePaginationParams extracts and validates page & per_page from query params.
 func parsePaginationParams(r *http.Request) (page, perPage int) {
