@@ -283,6 +283,14 @@ func TestGetGoalAvalanche_InjuryTimeOffset(t *testing.T) {
 
 func TestGetGoalAvalanche_ChaosZone_DifferentMatches(t *testing.T) {
 	// Two goals from different matches on day 2, 2 minutes apart → chaos zone.
+	m1 := matchWithGoals("Match1", "Opp1", []model.Goal{
+		{Name: "P1", Minute: 10},
+	}, nil, "2018-06-15", "Stadium")
+	m1.Time = "18:00"
+	m2 := matchWithGoals("Match2", "Opp2", nil, []model.Goal{
+		{Name: "P2", Minute: 12},
+	}, "2018-06-15", "Stadium")
+	m2.Time = "18:00"
 	svc := &MatchService{
 		cache: &matchCache{
 			tournaments: map[int]*model.Tournament{
@@ -291,12 +299,8 @@ func TestGetGoalAvalanche_ChaosZone_DifferentMatches(t *testing.T) {
 					Year: 2018,
 					Matches: []model.Match{
 						{Team1: "A", Team2: "B", Date: "2018-06-14"},
-						matchWithGoals("Match1", "Opp1", []model.Goal{
-							{Name: "P1", Minute: 10},
-						}, nil, "2018-06-15", ""),
-						matchWithGoals("Match2", "Opp2", nil, []model.Goal{
-							{Name: "P2", Minute: 12},
-						}, "2018-06-15", ""),
+						m1,
+						m2,
 					},
 				},
 			},
