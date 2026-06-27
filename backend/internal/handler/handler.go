@@ -152,11 +152,15 @@ func (h *Handler) GetTournamentMatches(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Sort by date — allMatches is already sorted ascending from the cache,
-	// so we only need to reverse for descending order
+	// so we only need to reverse for descending order.
+	// IMPORTANT: copy the slice before mutating to avoid corrupting the cache.
 	if sortOrder == "desc" {
-		for i, j := 0, len(allMatches)-1; i < j; i, j = i+1, j-1 {
-			allMatches[i], allMatches[j] = allMatches[j], allMatches[i]
+		sorted := make([]model.Match, len(allMatches))
+		copy(sorted, allMatches)
+		for i, j := 0, len(sorted)-1; i < j; i, j = i+1, j-1 {
+			sorted[i], sorted[j] = sorted[j], sorted[i]
 		}
+		allMatches = sorted
 	}
 
 	total := len(allMatches)
