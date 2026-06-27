@@ -3,27 +3,31 @@ package service
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
+	"errors"
 	"testing"
 
-	"github.com/mkhevin/world-cup-dashboard/backend/internal/repository"
+	"github.com/mkhevin/world-cup-dashboard/backend/internal/model"
 )
 
-func TestGetAvailableYears_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		// Return unsorted to test service-level sorting
-		w.Write([]byte(`[
-			{"name": "2022", "type": "dir"},
-			{"name": "1930", "type": "dir"},
-			{"name": "1998", "type": "dir"}
-		]`))
-	}))
-	defer server.Close()
+// mockTournamentLister implements tournamentLister for testing.
+type mockTournamentLister struct {
+	tournaments []*model.Tournament
+	err         error
+}
 
-	repo := &repository.YearRepo{Client: http.DefaultClient, URL: server.URL}
-	svc := NewYearService(repo)
+func (m *mockTournamentLister) GetTournaments(ctx context.Context) ([]*model.Tournament, error) {
+	return m.tournaments, m.err
+}
+
+func TestGetAvailableYears_Success(t *testing.T) {
+	mock := &mockTournamentLister{
+		tournaments: []*model.Tournament{
+			{Year: 2022},
+			{Year: 1930},
+			{Year: 1998},
+		},
+	}
+	svc := NewYearService(mock)
 	years, err := svc.GetAvailableYears(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -41,30 +45,23 @@ func TestGetAvailableYears_Success(t *testing.T) {
 }
 
 func TestGetAvailableYears_Empty(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[]`))
-	}))
-	defer server.Close()
-
-	repo := &repository.YearRepo{Client: http.DefaultClient, URL: server.URL}
-	svc := NewYearService(repo)
+	mock := &mockTournamentLister{
+		tournaments: []*model.Tournament{},
+	}
+	svc := NewYearService(mock)
 	_, err := svc.GetAvailableYears(context.Background())
 	if err == nil {
 		t.Fatal("expected error for empty years, got nil")
 	}
 }
 
-func TestGetAvailableYears_HTTPError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-	}))
-	defer server.Close()
-
-	repo := &repository.YearRepo{Client: http.DefaultClient, URL: server.URL}
-	svc := NewYearService(repo)
+func TestGetAvailableYears_ListerError(t *testing.T) {
+	mock := &mockTournamentLister{
+		err: errors.New("rate limited"),
+	}
+	svc := NewYearService(mock)
 	_, err := svc.GetAvailableYears(context.Background())
 	if err == nil {
-		t.Fatal("expected error for HTTP 403, got nil")
+		t.Fatal("expected error when lister fails, got nil")
 	}
 }
