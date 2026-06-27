@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -98,6 +99,12 @@ func (h *Handler) GetTournaments(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to fetch tournaments")
 		return
 	}
+
+	// Sort by year descending (most recent first)
+	sort.Slice(tournaments, func(i, j int) bool {
+		return tournaments[i].Year > tournaments[j].Year
+	})
+
 	writeJSON(w, http.StatusOK, tournaments)
 }
 
