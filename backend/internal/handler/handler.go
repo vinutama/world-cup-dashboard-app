@@ -404,29 +404,19 @@ func (h *Handler) fetchPolymarketTeams(ctx context.Context) ([]GlobalLeaderboard
 		}
 
 		// Safely handle both double-encoded strings "[\"0.18\"]" AND native arrays ["0.18"]
-		var prices []string
-		raw := bytes.TrimSpace(m.OutcomePrices)
-		if len(raw) > 0 && raw[0] == '"' {
-			var s string
-			if err := json.Unmarshal(raw, &s); err == nil {
-				_ = json.Unmarshal([]byte(s), &prices)
-			}
-		} else {
-			_ = json.Unmarshal(raw, &prices)
-		}
-
+		prices := parseRawJsonSlice(m.OutcomePrices)
 		if len(prices) == 0 {
 			continue
 		}
 
-		yesPrice, err := strconv.ParseFloat(prices[0], 64)
-		if err != nil {
+		prob := priceToPercent(prices[0])
+		if prob == 0 {
 			continue
 		}
 
 		results = append(results, GlobalLeaderboardResponse{
 			Team:        team,
-			Probability: int(yesPrice * 100),
+			Probability: prob,
 		})
 	}
 
@@ -459,7 +449,7 @@ func parseWorldCupTeam(question string) string {
 // --- Match Oracle ---
 
 // UpcomingMatchResponse is a single upcoming match prediction with 3-way odds
-// (home/draw/away) derived from live Polymarket World Cup Winner probabilities.
+// (home/draw/away) fetched purely from Polymarket gamma-api events.
 type UpcomingMatchResponse struct {
 	Match       string `json:"match"`
 	EndDate     string `json:"endDate"`
@@ -470,152 +460,30 @@ type UpcomingMatchResponse struct {
 	Source      string `json:"source"`
 }
 
-// scheduledFixture is a single entry in the World Cup 2026 match schedule (metadata only).
-type scheduledFixture struct {
-	HomeTeam string
-	AwayTeam string
-	Date     string
-	Venue    string
-}
-
-// wc2026Fixtures is the correct next 10 World Cup 2026 match schedule.
-// Source: verified by user — this is fixture metadata (dates/venues), not predictions.
-var wc2026Fixtures = []scheduledFixture{
-	{"South Africa", "Canada", "2026-06-28T20:00:00Z", "Los Angeles, USA"},
-	{"Brazil", "Japan", "2026-06-29T18:00:00Z", "Houston, USA"},
-	{"Germany", "Paraguay", "2026-06-29T20:00:00Z", "Boston, USA"},
-	{"Netherlands", "Morocco", "2026-06-29T18:00:00Z", "Monterrey, Mexico"},
-	{"Ivory Coast", "Norway", "2026-06-30T18:00:00Z", "Dallas, USA"},
-	{"France", "Sweden", "2026-06-30T20:00:00Z", "New York/New Jersey, USA"},
-	{"Mexico", "Ecuador", "2026-06-30T20:00:00Z", "Mexico City, Mexico"},
-	{"England", "DR Congo", "2026-07-01T18:00:00Z", "Atlanta, USA"},
-	{"Belgium", "Senegal", "2026-07-01T18:00:00Z", "Seattle, USA"},
-	{"United States", "Bosnia-Herzegovina", "2026-07-01T20:00:00Z", "San Francisco Bay Area, USA"},
-}
-
-// teamNameToPolymarket maps fixture team names to Polymarket market team names
-// where they differ (e.g., "United States" → "USA", "DR Congo" → "Congo DR").
-func teamNameToPolymarket(name string) string {
-	switch name {
-	case "United States":
-		return "USA"
-	case "DR Congo":
-		return "Congo DR"
-	default:
-		return name
-	}
-}
-
-// GetNextMatchOracle returns the top-10 upcoming World Cup match predictions
-// with 3-way odds (home/draw/away) derived from live Polymarket World Cup
-// Winner probabilities. No fallback — if gamma-api is unreachable, returns empty.
+// GetNextMatchOracle returns up to 10 live upcoming match predictions fetched
+// purely from Polymarket gamma-api events. No fallback — returns [] on error.
 func (h *Handler) GetNextMatchOracle(w http.ResponseWriter, r *http.Request) {
-	matches, err := h.deriveMatchOracle(r.Context())
+	matches, err := h.fetchPureMatchOracle(r.Context())
 	if err != nil {
-		h.logger.Warn("failed to derive match odds from Polymarket", "error", err)
+		h.logger.Warn("failed to fetch live match odds from Polymarket", "error", err)
 		writeJSON(w, http.StatusOK, []UpcomingMatchResponse{})
 		return
 	}
+
+	// Limit to the top 10 closest upcoming matches
 	if len(matches) > 10 {
 		matches = matches[:10]
 	}
+
 	writeJSON(w, http.StatusOK, matches)
 }
 
-// deriveMatchOracle computes 3-way match odds for upcoming WC 2026 fixtures
-// by fetching live Polymarket World Cup Winner probabilities and deriving
-// relative match strength. Every probability number traces to live market prices.
-func (h *Handler) deriveMatchOracle(ctx context.Context) ([]UpcomingMatchResponse, error) {
-	// 1. Fetch live Polymarket WC Winner probabilities for all teams
-	probs, err := h.fetchWcWinnerProbabilities(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("fetching wc winner probs: %w", err)
-	}
-
-	// 2. Build map: Polymarket team name → probability (as fraction 0.0–1.0)
-	// For teams not in Polymarket data, use a residual of 0.002 (0.2%) —
-	// the approximate probability for the 48th-ranked team.
-	const residualProb = 0.002
-	teamProbs := make(map[string]float64, len(probs))
-	for _, p := range probs {
-		teamProbs[p.Team] = float64(p.Probability) / 100.0
-	}
-
-	// 3. For each fixture, derive 3-way odds from relative tournament strength
-	var results []UpcomingMatchResponse
-	for _, f := range wc2026Fixtures {
-		homePoly := teamNameToPolymarket(f.HomeTeam)
-		awayPoly := teamNameToPolymarket(f.AwayTeam)
-
-		homeProb := teamProbs[homePoly]
-		if homeProb == 0 {
-			homeProb = residualProb
-		}
-		awayProb := teamProbs[awayPoly]
-		if awayProb == 0 {
-			awayProb = residualProb
-		}
-
-		homeWin, draw, awayWin := derive3WayOdds(homeProb, awayProb)
-		source := "Polymarket (derived)"
-		if homeProb <= residualProb && awayProb <= residualProb {
-			source = "Equal odds (no Polymarket data for either team)"
-		}
-
-		results = append(results, UpcomingMatchResponse{
-			Match:       fmt.Sprintf("%s vs. %s", f.HomeTeam, f.AwayTeam),
-			EndDate:     f.Date,
-			Venue:       f.Venue,
-			PercentHome: homeWin,
-			PercentDraw: draw,
-			PercentAway: awayWin,
-			Source:      source,
-		})
-	}
-
-	return results, nil
-}
-
-// derive3WayOdds converts two team tournament win probabilities into 3-way
-// match outcome percentages (home win, draw, away win).
-//
-// Model: draw probability is maximized (~30%) when teams are evenly matched
-// and minimized (~10%) when one team is far stronger. Remaining probability
-// is split proportionally by relative tournament win probability.
-func derive3WayOdds(probA, probB float64) (home, draw, away int) {
-	total := probA + probB
-	if total <= 0 {
-		return 33, 34, 33 // equal odds when no data for either team
-	}
-
-	// Relative strength within the match
-	relA := probA / total
-	relB := probB / total
-
-	// Draw probability: ranges from 30% (equal teams) → 10% (very unequal)
-	disparity := relA - relB
-	if disparity < 0 {
-		disparity = -disparity
-	}
-	drawF := 0.10 + 0.20*(1.0-disparity)
-	switch {
-	case drawF < 0.08:
-		drawF = 0.08
-	case drawF > 0.32:
-		drawF = 0.32
-	}
-
-	// Distribute remaining probability proportionally to relative strength
-	homeF := relA * (1.0 - drawF)
-	awayF := relB * (1.0 - drawF)
-
-	return int(homeF*100 + 0.5), int(drawF*100 + 0.5), int(awayF*100 + 0.5)
-}
-
-// fetchWcWinnerProbabilities fetches ALL World Cup Winner market probabilities
-// from the Polymarket gamma-api. Returns sorted slice of team→probability entries.
-func (h *Handler) fetchWcWinnerProbabilities(ctx context.Context) ([]GlobalLeaderboardResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://gamma-api.polymarket.com/markets?active=true&limit=200", nil)
+// fetchPureMatchOracle queries the public Polymarket Gamma API for active match events,
+// parses their 3-way or binary betting lines, and returns them sorted chronologically.
+func (h *Handler) fetchPureMatchOracle(ctx context.Context) ([]UpcomingMatchResponse, error) {
+	// Query active, open events across the platform
+	endpoint := "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -628,44 +496,84 @@ func (h *Handler) fetchWcWinnerProbabilities(ctx context.Context) ([]GlobalLeade
 	}
 	defer resp.Body.Close()
 
-	var markets []struct {
-		Question      string `json:"question"`
-		OutcomePrices string `json:"outcomePrices"`
-		Event         string `json:"event"`
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code from polymarket: %d", resp.StatusCode)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&markets); err != nil {
+
+	type GammaEvent struct {
+		Title   string `json:"title"`
+		EndDate string `json:"endDate"`
+		Markets []struct {
+			Outcomes      json.RawMessage `json:"outcomes"`
+			OutcomePrices json.RawMessage `json:"outcomePrices"`
+		} `json:"markets"`
+	}
+
+	var events []GammaEvent
+	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
 		return nil, fmt.Errorf("decoding polymarket response: %w", err)
 	}
 
-	var results []GlobalLeaderboardResponse
-	for _, m := range markets {
-		// Only World Cup markets
-		if !strings.Contains(m.Question, "World Cup") && !strings.Contains(m.Event, "World Cup") {
-			continue
-		}
-		team := parseWorldCupTeam(m.Question)
-		if team == "" {
+	results := make([]UpcomingMatchResponse, 0)
+
+	for _, event := range events {
+		// Filter for soccer/World Cup match items
+		titleLower := strings.ToLower(event.Title)
+		if !strings.Contains(titleLower, "vs") || (!strings.Contains(titleLower, "cup") && !strings.Contains(titleLower, "match")) {
 			continue
 		}
 
-		var prices []string
-		if err := json.Unmarshal([]byte(m.OutcomePrices), &prices); err != nil || len(prices) == 0 {
-			continue
-		}
-		yesPrice, err := strconv.ParseFloat(prices[0], 64)
-		if err != nil {
+		if len(event.Markets) == 0 {
 			continue
 		}
 
-		results = append(results, GlobalLeaderboardResponse{
-			Team:        team,
-			Probability: int(yesPrice * 100),
+		// Look at the primary match market (usually the first market listed in the event)
+		market := event.Markets[0]
+
+		// Parse outcomes and prices safely
+		outcomes := parseRawJsonSlice(market.Outcomes)
+		prices := parseRawJsonSlice(market.OutcomePrices)
+
+		if len(outcomes) == 0 || len(prices) == 0 || len(outcomes) != len(prices) {
+			continue
+		}
+
+		var homeWin, draw, awayWin int
+
+		// Format A: 3-Way Market -> ["Team A", "Draw", "Team B"]
+		if len(outcomes) == 3 {
+			homeWin = priceToPercent(prices[0])
+			draw = priceToPercent(prices[1])
+			awayWin = priceToPercent(prices[2])
+		} else if len(outcomes) == 2 {
+			// Format B: Binary Head-to-Head -> ["Team A", "Team B"]
+			homeWin = priceToPercent(prices[0])
+			draw = 0
+			awayWin = priceToPercent(prices[1])
+		} else {
+			continue
+		}
+
+		results = append(results, UpcomingMatchResponse{
+			Match:       event.Title,
+			EndDate:     event.EndDate,
+			Venue:       "FIFA 2026 Venue", // Polymarket doesn't supply stadiums
+			PercentHome: homeWin,
+			PercentDraw: draw,
+			PercentAway: awayWin,
+			Source:      "Polymarket Live Multi-Outcome Line",
 		})
 	}
 
-	if len(results) == 0 {
-		return nil, fmt.Errorf("no world cup winner markets found")
-	}
+	// Sort matches chronologically so the closest game appears first on the dashboard
+	sort.Slice(results, func(i, j int) bool {
+		tI, errI := time.Parse(time.RFC3339, results[i].EndDate)
+		tJ, errJ := time.Parse(time.RFC3339, results[j].EndDate)
+		if errI != nil || errJ != nil {
+			return false
+		}
+		return tI.Before(tJ)
+	})
 
 	return results, nil
 }
@@ -820,6 +728,35 @@ func parsePercent(s string) int {
 	}
 	v, _ := strconv.Atoi(s)
 	return v
+}
+
+// parseRawJsonSlice safely handles double-encoded JSON arrays ("[\"A\",\"B\"]") or
+// normal arrays (["A","B"]) and returns a string slice.
+func parseRawJsonSlice(raw json.RawMessage) []string {
+	var result []string
+	cleanRaw := bytes.TrimSpace(raw)
+	if len(cleanRaw) == 0 {
+		return nil
+	}
+
+	if cleanRaw[0] == '"' {
+		var unescapedString string
+		if err := json.Unmarshal(cleanRaw, &unescapedString); err == nil {
+			_ = json.Unmarshal([]byte(unescapedString), &result)
+		}
+	} else {
+		_ = json.Unmarshal(cleanRaw, &result)
+	}
+	return result
+}
+
+// priceToPercent converts a fractional price string ("0.425") to an integer percentage (43).
+func priceToPercent(priceStr string) int {
+	val, err := strconv.ParseFloat(priceStr, 64)
+	if err != nil {
+		return 0
+	}
+	return int((val * 100) + 0.5)
 }
 
 // writeJSON sends a JSON response with the given status code.
