@@ -4,11 +4,13 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mkhevin/world-cup-dashboard/backend/internal/model"
 )
@@ -51,6 +53,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/tournaments/{id}/matches", h.GetTournamentMatches)
 	mux.HandleFunc("GET /api/matches/{id}", h.GetMatch)
 	mux.HandleFunc("GET /api/v1/goal-avalanche", h.GetGoalAvalanche)
+	mux.HandleFunc("GET /api/v1/predictions/global", h.GetGlobalLeaderboard)
 }
 
 // Health responds with service status.
@@ -321,6 +324,105 @@ func (h *Handler) GetGoalAvalanche(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"timeline": timeline,
 	})
+}
+
+// GlobalLeaderboardResponse represents a single entry in the prediction leaderboard.
+type GlobalLeaderboardResponse struct {
+	Team        string `json:"team"`
+	Probability int    `json:"probability"`
+}
+
+// TopLeaderboardTeams is the maximum number of teams to return.
+const TopLeaderboardTeams = 10
+
+// GetGlobalLeaderboard returns the top-10 World Cup winner predictions from Polymarket.
+func (h *Handler) GetGlobalLeaderboard(w http.ResponseWriter, r *http.Request) {
+	// Query Polymarket gamma-api for all 2026 FIFA World Cup winner markets.
+	// Each team has a binary market ("Will X win the 2026 FIFA World Cup?"),
+	// where outcomePrices[0] = probability of "Yes".
+	teamMarkets, err := h.fetchPolymarketTeams(r.Context())
+	if err != nil {
+		h.logger.Error("failed to fetch Polymarket teams", "error", err)
+		writeError(w, http.StatusBadGateway, "failed to fetch prediction data from Polymarket")
+		return
+	}
+
+	top10 := make([]GlobalLeaderboardResponse, 0, TopLeaderboardTeams)
+	for i := 0; i < len(teamMarkets) && i < TopLeaderboardTeams; i++ {
+		top10 = append(top10, teamMarkets[i])
+	}
+
+	writeJSON(w, http.StatusOK, top10)
+}
+
+// fetchPolymarketTeams queries the Polymarket gamma-api for all "Will X win the 2026 FIFA World Cup?" markets,
+// extracts team names and "Yes" probabilities, and returns them sorted descending by probability.
+func (h *Handler) fetchPolymarketTeams(ctx context.Context) ([]GlobalLeaderboardResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://gamma-api.polymarket.com/markets?limit=100", nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling polymarket api: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var markets []struct {
+		Question      string `json:"question"`
+		OutcomePrices string `json:"outcomePrices"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&markets); err != nil {
+		return nil, fmt.Errorf("decoding polymarket response: %w", err)
+	}
+
+	var results []GlobalLeaderboardResponse
+	for _, m := range markets {
+		// Parse team name from "Will <Team> win the 2026 FIFA World Cup?"
+		team := parseWorldCupTeam(m.Question)
+		if team == "" {
+			continue
+		}
+
+		var prices []string
+		if err := json.Unmarshal([]byte(m.OutcomePrices), &prices); err != nil || len(prices) == 0 {
+			continue
+		}
+		yesPrice, err := strconv.ParseFloat(prices[0], 64)
+		if err != nil {
+			continue
+		}
+
+		results = append(results, GlobalLeaderboardResponse{
+			Team:        team,
+			Probability: int(yesPrice * 100),
+		})
+	}
+
+	// Sort descending by probability
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Probability > results[j].Probability
+	})
+
+	return results, nil
+}
+
+// parseWorldCupTeam extracts the team name from a Polymarket question like
+// "Will France win the 2026 FIFA World Cup?" or returns empty string if no match.
+func parseWorldCupTeam(question string) string {
+	const prefix = "Will "
+	const suffix = " win the 2026 FIFA World Cup?"
+	if len(question) < len(prefix)+len(suffix) {
+		return ""
+	}
+	if !strings.HasPrefix(question, prefix) || !strings.HasSuffix(question, suffix) {
+		return ""
+	}
+	return question[len(prefix) : len(question)-len(suffix)]
 }
 
 // writeJSON sends a JSON response with the given status code.

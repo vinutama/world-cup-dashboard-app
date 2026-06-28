@@ -15,9 +15,9 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 - [x] Add `REDIS_ADDR=redis:6379` env var to the `backend` service
 
 ### 7.2 Golang Redis Client Initialization
-- [ ] Run `go get github.com/redis/go-redis/v9`
-- [ ] Initialize Redis client in startup config using `os.Getenv("REDIS_ADDR")`
-- [ ] Implement `Ping()` health check on boot — fatal if Redis unreachable
+- [x] Run `go get github.com/redis/go-redis/v9`
+- [x] Initialize Redis client in startup config using `os.Getenv("REDIS_ADDR")`
+- [x] Implement `Ping()` health check on boot — fatal if Redis unreachable
 
 ### 7.3 Global Leaderboard Route (`GET /api/v1/predictions/global`)
 - [ ] Create handler proxying `https://gamma-api.polymarket.com/markets?slug=winner-of-2026-fifa-world-cup`
