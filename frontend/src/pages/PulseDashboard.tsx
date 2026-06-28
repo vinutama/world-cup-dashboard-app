@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { GlobalFavorite, MatchOracle } from '../types/oracle';
+import type { GlobalFavorite, NextMatchOracle } from '../types/oracle';
 
 // ─ Helpers ─────────────────────────────────────
 const rankColor = (i: number) => {
@@ -84,7 +84,7 @@ function WisdomWheel({ data }: { data: GlobalFavorite[] }) {
 }
 
 // ─ Match Oracle ────────────────────────────────
-function MatchOracleCard({ data, loading }: { data: MatchOracle | null; loading: boolean }) {
+function MatchOracleCard({ data, loading }: { data: NextMatchOracle | null; loading: boolean }) {
   if (loading) return <OracleSkeleton />;
   if (!data) {
     return (
@@ -103,16 +103,16 @@ function MatchOracleCard({ data, loading }: { data: MatchOracle | null; loading:
         <span className="text-emerald-400">◈</span> Match Oracle
       </h2>
 
-      {/* Glowing callout */}
-      <div className="border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono text-lg p-4 rounded-xl text-center mb-6 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
-        {data.advice}
+      {/* Glowing neon fixture name header */}
+      <div className="border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono text-2xl font-bold p-5 rounded-xl text-center mb-6 shadow-[0_0_20px_rgba(16,185,129,0.15)] tracking-wide">
+        {data.fixtureName}
       </div>
 
       {/* Labels row */}
-      <div className="flex justify-between text-xs text-zinc-500 mb-1 px-1">
-        <span>Home {data.percentHome}%</span>
-        <span>Draw {data.percentDraw}%</span>
-        <span>Away {data.percentAway}%</span>
+      <div className="flex justify-between text-xs text-zinc-500 mb-1 px-1 font-semibold">
+        <span className="text-emerald-400/80">HOME {data.percentHome}%</span>
+        <span className="text-amber-400/80">DRAW {data.percentDraw}%</span>
+        <span className="text-rose-400/80">AWAY {data.percentAway}%</span>
       </div>
 
       {/* 3-way probability bar */}
@@ -137,7 +137,7 @@ function MatchOracleCard({ data, loading }: { data: MatchOracle | null; loading:
 // ─ PulseDashboard ──────────────────────────────
 export default function PulseDashboard() {
   const [leaderboard, setLeaderboard] = useState<GlobalFavorite[]>([]);
-  const [oracle, setOracle] = useState<MatchOracle | null>(null);
+  const [oracle, setOracle] = useState<NextMatchOracle | null>(null);
   const [loadingWheel, setLoadingWheel] = useState(true);
   const [loadingOracle, setLoadingOracle] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -155,11 +155,10 @@ export default function PulseDashboard() {
         setLoadingWheel(false);
       });
 
-    // Fetch Match Oracle — try a known fixture (e.g., 2018 Final = 888)
-    // The actual fixture ID mapping is a future improvement; 888 is a common API-Football fixture.
-    fetch('/api/v1/predictions/match/888')
+    // Fetch Match Oracle — use Polymarket Gamma next-match endpoint
+    fetch('/api/v1/predictions/match/next')
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: MatchOracle | null) => {
+      .then((data: NextMatchOracle | null) => {
         setOracle(data);
         setLoadingOracle(false);
       })
@@ -177,7 +176,7 @@ export default function PulseDashboard() {
           Pulse <span className="text-cyan-400">Oracle</span>
         </h1>
         <p className="text-zinc-500 text-sm mt-1">
-          Prediction insights powered by Polymarket &amp; API-Football
+          Prediction insights powered by Polymarket
         </p>
       </div>
 

@@ -10,3 +10,11 @@ export interface MatchOracle {
   percentDraw: number;
   percentAway: number;
 }
+
+export interface NextMatchOracle {
+  fixtureName: string;
+  percentHome: number;
+  percentDraw: number;
+  percentAway: number;
+  source: string;
+}
