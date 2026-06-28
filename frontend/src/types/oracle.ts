@@ -15,6 +15,7 @@ export interface UpcomingMatch {
   id: string;
   match: string;
   endDate: string;
+  venue: string;
   outcomes: string[];
   odds: string[];
 }

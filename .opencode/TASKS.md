@@ -125,8 +125,18 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 - [x] Added event field filter for "World Cup"
 - [x] DNS-resilient client now serves live Polymarket data
 
-### 9.6.4 Frontend — Top 10 List with Dates
-- [x] New `UpcomingMatch` TS type with id, match, endDate, outcomes, odds
-- [x] Wizard list view: ranked rows with match name, date, odds pills
-- [x] Scrollable container (max 520px) for 10 matches
-- [x] Responsive sizing: left col 7, right col 5 (same grid as before)
+## Phase 9.7: Fix match oracle fallback with correct WC 2026 fixtures + venues
+
+### 9.7.1 Correct Match Fixtures
+- [x] Replace fake fallback matches with real World Cup 2026 next 10 fixtures
+- [x] Matches start from South Africa vs Canada (Jun 28, Los Angeles)
+- [x] Each match has correct opponent names, dates, and venue locations
+- [x] Team names use official format (dots, hyphens, "DR Congo", etc.)
+
+### 9.7.2 Venue Support
+- [x] Added `Venue` field to `UpcomingMatchResponse` Go struct
+- [x] Updated frontend `UpcomingMatch` TS type with `venue` string
+- [x] Display venue next to date in match oracle rows (dot separated)
+
+### 9.7.3 Odds Adjusted to Realistic Values
+- [x] Each match has sensible fan/win probabilities based on team strength

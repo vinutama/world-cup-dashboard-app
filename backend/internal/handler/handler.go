@@ -444,6 +444,7 @@ type UpcomingMatchResponse struct {
 	ID       string   `json:"id"`
 	Match    string   `json:"match"`
 	EndDate  string   `json:"endDate"`
+	Venue    string   `json:"venue"`
 	Outcomes []string `json:"outcomes"`
 	Odds     []string `json:"odds"`
 }
@@ -714,16 +715,16 @@ func fallbackLeaderboard() []GlobalLeaderboardResponse {
 // used when gamma-api is unreachable or has no vs-type match markets.
 func fallbackUpcomingMatches() []UpcomingMatchResponse {
 	return []UpcomingMatchResponse{
-		{Match: "South Africa vs Canada", EndDate: "2026-06-29T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.50", "0.50"}},
-		{Match: "USA vs Morocco", EndDate: "2026-06-30T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.55", "0.45"}},
-		{Match: "Argentina vs Portugal", EndDate: "2026-07-01T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.60", "0.40"}},
-		{Match: "France vs Netherlands", EndDate: "2026-07-02T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.65", "0.35"}},
-		{Match: "England vs Spain", EndDate: "2026-07-03T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.50", "0.50"}},
-		{Match: "Brazil vs Germany", EndDate: "2026-07-04T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.55", "0.45"}},
-		{Match: "Italy vs Belgium", EndDate: "2026-07-05T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.50", "0.50"}},
-		{Match: "Japan vs Nigeria", EndDate: "2026-07-06T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.45", "0.55"}},
-		{Match: "Australia vs Denmark", EndDate: "2026-07-07T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.40", "0.60"}},
-		{Match: "Mexico vs Senegal", EndDate: "2026-07-08T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.50", "0.50"}},
+		{Match: "South Africa vs. Canada", EndDate: "2026-06-28T20:00:00Z", Venue: "Los Angeles, USA", Outcomes: []string{"South Africa", "Canada"}, Odds: []string{"0.48", "0.52"}},
+		{Match: "Brazil vs. Japan", EndDate: "2026-06-29T18:00:00Z", Venue: "Houston, USA", Outcomes: []string{"Brazil", "Japan"}, Odds: []string{"0.58", "0.42"}},
+		{Match: "Germany vs. Paraguay", EndDate: "2026-06-29T20:00:00Z", Venue: "Boston, USA", Outcomes: []string{"Germany", "Paraguay"}, Odds: []string{"0.55", "0.45"}},
+		{Match: "Netherlands vs. Morocco", EndDate: "2026-06-29T18:00:00Z", Venue: "Monterrey, Mexico", Outcomes: []string{"Netherlands", "Morocco"}, Odds: []string{"0.52", "0.48"}},
+		{Match: "Ivory Coast vs. Norway", EndDate: "2026-06-30T18:00:00Z", Venue: "Dallas, USA", Outcomes: []string{"Ivory Coast", "Norway"}, Odds: []string{"0.45", "0.55"}},
+		{Match: "France vs. Sweden", EndDate: "2026-06-30T20:00:00Z", Venue: "New York/New Jersey, USA", Outcomes: []string{"France", "Sweden"}, Odds: []string{"0.60", "0.40"}},
+		{Match: "Mexico vs. Ecuador", EndDate: "2026-06-30T20:00:00Z", Venue: "Mexico City, Mexico", Outcomes: []string{"Mexico", "Ecuador"}, Odds: []string{"0.50", "0.50"}},
+		{Match: "England vs. DR Congo", EndDate: "2026-07-01T18:00:00Z", Venue: "Atlanta, USA", Outcomes: []string{"England", "DR Congo"}, Odds: []string{"0.55", "0.45"}},
+		{Match: "Belgium vs. Senegal", EndDate: "2026-07-01T18:00:00Z", Venue: "Seattle, USA", Outcomes: []string{"Belgium", "Senegal"}, Odds: []string{"0.50", "0.50"}},
+		{Match: "United States vs. Bosnia-Herzegovina", EndDate: "2026-07-01T20:00:00Z", Venue: "San Francisco Bay Area, USA", Outcomes: []string{"USA", "Bosnia-Herzegovina"}, Odds: []string{"0.53", "0.47"}},
 	}
 }
 
