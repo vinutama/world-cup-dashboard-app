@@ -11,8 +11,9 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
   - [x] `redis_data` volume mapped to `/data`
   - [x] `container_name: worldcup_redis`
   - [x] `command: redis-server --appendonly yes`
-- [x] Declare `redis_data` volume at bottom of compose file
+  - [x] Skip host port (6379 in use; internal Docker network only)
 - [x] Add `REDIS_ADDR=redis:6379` env var to the `backend` service
+- [x] Add `depends_on: redis` to the backend service
 
 ### 7.2 Golang Redis Client Initialization
 - [x] Run `go get github.com/redis/go-redis/v9`
@@ -20,11 +21,11 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 - [x] Implement `Ping()` health check on boot — fatal if Redis unreachable
 
 ### 7.3 Global Leaderboard Route (`GET /api/v1/predictions/global`)
-- [ ] Create handler proxying `https://gamma-api.polymarket.com/markets?slug=winner-of-2026-fifa-world-cup`
-- [ ] Parse `outcomes` (teams) and `outcomePrices` (odds) from Polymarket response
-- [ ] Sort descending by price, take top 10
-- [ ] Convert float strings (e.g. `"0.184"`) → integer percentages (e.g. `18`)
-- [ ] Return JSON: `[{"team": "France", "probability": 18}, ...]`
+- [x] Create handler proxying Polymarket gamma-api for 2026 WC winner markets
+- [x] Extract team names from question text and parse "Yes" probabilities
+- [x] Sort descending by probability, take top 10
+- [x] Return JSON: `[{"team": "France", "probability": 23}, ...]`
+- [x] Enable IPv6 in Docker network (gamma-api is IPv6-only) — `docker-compose.yml`
 
 ### 7.4 Match Oracle Route (`GET /api/v1/predictions/match/{fixture_id}`)
 - [ ] Implement Cache-Aside pattern:

@@ -39,8 +39,14 @@ func main() {
 	}
 	logger.Info("redis connected", "addr", redisAddr)
 
+	// Read API-Football key
+	apiFootballKey := os.Getenv("API_FOOTBALL_KEY")
+	if apiFootballKey == "" {
+		logger.Warn("API_FOOTBALL_KEY not set — match oracle will return errors")
+	}
+
 	// Initialize layers
-	httpClient := &http.Client{}
+	httpClient := &http.Client{Timeout: 10 * time.Second}
 
 	yearRepo := repository.NewYearRepo(httpClient)
 	matchRepo := repository.NewMatchRepo(httpClient)
@@ -48,7 +54,7 @@ func main() {
 	matchSvc := service.NewMatchService(yearRepo, matchRepo)
 	yearSvc := service.NewYearService(matchSvc)
 
-	h := handler.New(yearSvc, matchSvc, logger)
+	h := handler.New(yearSvc, matchSvc, rdb, apiFootballKey, logger)
 
 	// Set up routing
 	mux := http.NewServeMux()

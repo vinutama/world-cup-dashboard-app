@@ -18,6 +18,7 @@ services:
     environment:
       - PORT=8080
       - REDIS_ADDR=redis:6379
+    env_file: ./backend/.env
     depends_on:
       - redis
     restart: unless-stopped
