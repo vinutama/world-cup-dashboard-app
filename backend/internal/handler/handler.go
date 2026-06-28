@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"net"
 	"net/http"
 	"sort"
@@ -479,100 +478,94 @@ func (h *Handler) GetNextMatchOracle(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, matches)
 }
 
-// scheduledFixture is a single entry in the World Cup 2026 match schedule (metadata only).
-type scheduledFixture struct {
-	HomeTeam string
-	AwayTeam string
-	Date     string
-	Venue    string
-}
-
-// wc2026Fixtures is the correct World Cup 2026 match schedule
-// (metadata only — dates/venues, not predictions).
-var wc2026Fixtures = []scheduledFixture{
-	{"South Africa", "Canada", "2026-06-28T20:00:00Z", "Los Angeles, USA"},
-	{"Brazil", "Japan", "2026-06-29T18:00:00Z", "Houston, USA"},
-	{"Germany", "Paraguay", "2026-06-29T20:00:00Z", "Boston, USA"},
-	{"Netherlands", "Morocco", "2026-06-29T18:00:00Z", "Monterrey, Mexico"},
-	{"Ivory Coast", "Norway", "2026-06-30T18:00:00Z", "Dallas, USA"},
-	{"France", "Sweden", "2026-06-30T20:00:00Z", "New York/New Jersey, USA"},
-	{"Mexico", "Ecuador", "2026-06-30T20:00:00Z", "Mexico City, Mexico"},
-	{"England", "DR Congo", "2026-07-01T18:00:00Z", "Atlanta, USA"},
-	{"Belgium", "Senegal", "2026-07-01T18:00:00Z", "Seattle, USA"},
-	{"United States", "Bosnia-Herzegovina", "2026-07-01T20:00:00Z", "San Francisco Bay Area, USA"},
-}
-
-// teamNameToPolymarket maps fixture team names to Polymarket market team names
-// where they differ (e.g., "United States" → "USA", "DR Congo" → "Congo DR").
-func teamNameToPolymarket(name string) string {
-	switch name {
-	case "United States":
-		return "USA"
-	case "DR Congo":
-		return "Congo DR"
-	default:
-		return name
-	}
-}
-
-// fetchPureMatchOracle fetches live Polymarket WC Winner probabilities (same data as leaderboard)
-// and derives 3-way match odds for upcoming fixtures using math/rand for the draw percentage.
+// fetchPureMatchOracle queries the public Polymarket Gamma API for active match events,
+// parses their 3-way or binary betting lines, and returns them sorted chronologically.
 func (h *Handler) fetchPureMatchOracle(ctx context.Context) ([]UpcomingMatchResponse, error) {
-	// 1. Fetch WC Winner probabilities — same API call as leaderboard
-	teamMarkets, err := h.fetchPolymarketTeams(ctx)
+	// Query active, open events across the platform
+	endpoint := "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("fetching polymarket teams: %w", err)
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := gammaHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling polymarket api: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code from polymarket: %d", resp.StatusCode)
 	}
 
-	// 2. Build team → probability map (as fraction 0.0–1.0)
-	teamProbs := make(map[string]float64, len(teamMarkets))
-	for _, m := range teamMarkets {
-		teamProbs[m.Team] = float64(m.Probability) / 100.0
+	type GammaEvent struct {
+		Title   string `json:"title"`
+		EndDate string `json:"endDate"`
+		Markets []struct {
+			Outcomes      json.RawMessage `json:"outcomes"`
+			OutcomePrices json.RawMessage `json:"outcomePrices"`
+		} `json:"markets"`
 	}
 
-	// 3. Derive 3-way odds for each fixture
-	const residualProb = 0.002
-	results := make([]UpcomingMatchResponse, 0, len(wc2026Fixtures))
+	var events []GammaEvent
+	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
+		return nil, fmt.Errorf("decoding polymarket response: %w", err)
+	}
 
-	for _, f := range wc2026Fixtures {
-		homePoly := teamNameToPolymarket(f.HomeTeam)
-		awayPoly := teamNameToPolymarket(f.AwayTeam)
+	results := make([]UpcomingMatchResponse, 0)
 
-		homeWp := teamProbs[homePoly]
-		if homeWp == 0 {
-			homeWp = residualProb
-		}
-		awayWp := teamProbs[awayPoly]
-		if awayWp == 0 {
-			awayWp = residualProb
+	for _, event := range events {
+		// Filter for soccer/World Cup match items
+		titleLower := strings.ToLower(event.Title)
+		if !strings.Contains(titleLower, "vs") || (!strings.Contains(titleLower, "cup") && !strings.Contains(titleLower, "match")) {
+			continue
 		}
 
-		// Draw probability: random between 8% and 32%
-		drawPct := 8 + rand.Intn(25) // 8..32 inclusive
+		if len(event.Markets) == 0 {
+			continue
+		}
 
-		// Split remaining probability proportional to tournament strength
-		totalStrength := homeWp + awayWp
-		remaining := 100 - drawPct
-		homeWin := int(float64(remaining)*homeWp/totalStrength + 0.5)
-		awayWin := remaining - homeWin
+		// Look at the primary match market (usually the first market listed in the event)
+		market := event.Markets[0]
 
-		source := "Polymarket WC Winner markets"
-		if homeWp <= residualProb && awayWp <= residualProb {
-			source = "Equal odds (no Polymarket data)"
+		// Parse outcomes and prices safely
+		outcomes := parseRawJsonSlice(market.Outcomes)
+		prices := parseRawJsonSlice(market.OutcomePrices)
+
+		if len(outcomes) == 0 || len(prices) == 0 || len(outcomes) != len(prices) {
+			continue
+		}
+
+		var homeWin, draw, awayWin int
+
+		// Format A: 3-Way Market -> ["Team A", "Draw", "Team B"]
+		if len(outcomes) == 3 {
+			homeWin = priceToPercent(prices[0])
+			draw = priceToPercent(prices[1])
+			awayWin = priceToPercent(prices[2])
+		} else if len(outcomes) == 2 {
+			// Format B: Binary Head-to-Head -> ["Team A", "Team B"]
+			homeWin = priceToPercent(prices[0])
+			draw = 0
+			awayWin = priceToPercent(prices[1])
+		} else {
+			continue
 		}
 
 		results = append(results, UpcomingMatchResponse{
-			Match:       fmt.Sprintf("%s vs. %s", f.HomeTeam, f.AwayTeam),
-			EndDate:     f.Date,
-			Venue:       f.Venue,
+			Match:       event.Title,
+			EndDate:     event.EndDate,
+			Venue:       "FIFA 2026 Venue", // Polymarket doesn't supply stadiums
 			PercentHome: homeWin,
-			PercentDraw: drawPct,
+			PercentDraw: draw,
 			PercentAway: awayWin,
-			Source:      source,
+			Source:      "Polymarket Live Multi-Outcome Line",
 		})
 	}
 
-	// Sort chronologically
+	// Sort matches chronologically so the closest game appears first on the dashboard
 	sort.Slice(results, func(i, j int) bool {
 		tI, errI := time.Parse(time.RFC3339, results[i].EndDate)
 		tJ, errJ := time.Parse(time.RFC3339, results[j].EndDate)

@@ -203,3 +203,16 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 - [x] `[]` when Gamma unreachable (both endpoints)
 - [x] "Equal odds (no Polymarket data)" when both teams unrated
 
+## Phase 12: Pure events-only match oracle — remove all derivation code
+
+### 12.1 Removed
+- [x] `scheduledFixture` type and `wc2026Fixtures` list
+- [x] `teamNameToPolymarket` mapping function
+- [x] `math/rand` import, `residualProb` constant, derivation logic
+
+### 12.2 Restored
+- [x] `fetchPureMatchOracle` queries `GET /events?active=true&closed=false&limit=100`
+- [x] Filters "vs" + ("cup" or "match") events
+- [x] Parses 3-way / binary Polymarket markets using `parseRawJsonSlice` + `priceToPercent`
+- [x] Returns `[]` when no events found (no fallback)
+
