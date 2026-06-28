@@ -6,6 +6,8 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    networks:
+      - app_net
 
   backend:
     build:
@@ -19,6 +21,8 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+    networks:
+      - app_net
 
   frontend:
     build:
@@ -29,6 +33,16 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    networks:
+      - app_net
 
 volumes:
   redis_data:
+
+networks:
+  app_net:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+        - subnet: "fd00:dead:beef::/48"
