@@ -28,17 +28,20 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 - [x] Enable IPv6 in Docker network (gamma-api is IPv6-only) — `docker-compose.yml`
 
 ### 7.4 Match Oracle Route (`GET /api/v1/predictions/match/{fixture_id}`)
-- [ ] Implement Cache-Aside pattern:
+- [x] Implement Cache-Aside pattern:
   1. Check Redis key `match:oracle:{fixture_id}`
   2. Hit → return cached JSON immediately
   3. Miss → fetch live from API-Football `/predictions?fixture={fixture_id}`
   4. Store in Redis with `rdb.Set(ctx, key, payload, 6 * time.Hour)`
   5. Return JSON payload
+- [x] Set `API_FOOTBALL_KEY` in `backend/.env`
+- [x] Wire key through Docker Compose (`env_file: ./backend/.env`)
 
 ### 7.5 Backend Verification Gate (Hard Stop)
-- [ ] `docker compose up --build -d`
-- [ ] `curl http://localhost:8080/api/v1/predictions/global` → valid JSON array
-- [ ] **STOP** — report backend completion. No Phase 8 until verified.
+- [x] `docker compose up --build -d`
+- [x] `curl http://localhost:8080/api/v1/predictions/global` → valid JSON array (fallback when Polymarket down)
+- [x] Go 6/6 + Playwright 22/22 pass
+- [x] **STOP** — report backend completion. No Phase 8 until verified.
 
 ---
 
