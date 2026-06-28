@@ -194,3 +194,51 @@ CRITICAL HERMES RULE: Do not write a single line of React code for Phase 8 until
 ### 8.5 Polish & Loading States
 * [ ] Create matching glassmorphic React Skeleton placeholder blocks for the initial isLoading state so the page doesn't jump.
 * [ ] Add a subtle entry transition to the master wrapper (`animate-fade-in`).
+
+---
+
+# PHASE 9: THE NEXT MATCH ORACLE (Polymarket Gamma Integration)
+
+## 🎯 Objective
+Replace all third-party sports APIs and upgrade the dashboard to *exclusively* show the single next upcoming 2026 World Cup match prediction. Uses the 100% free, public Polymarket Gamma API to source global crowd-sentiment probabilities for the next game.
+
+---
+
+### 9.1 Backend: The Gamma API Fetcher (Go)
+* [ ] Update the route `GET /api/v1/predictions/match/next`.
+* [ ] Make a standard HTTP GET request to Polymarket's public metadata discovery endpoint:
+  `https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100`
+  *(No API keys or auth required for this read-only Gamma endpoint).*
+* [ ] Filter & Sort (The Next Match Logic):
+  1. Iterate through the JSON response and filter for events where the tags/category include "World Cup" or "Soccer".
+  2. Parse the `endDate` or `startDate` of these filtered events.
+  3. Sort the events chronologically to find the single closest upcoming match in time.
+
+### 9.2 Backend: Data Parsing & Formatting
+* [ ] Extract the `markets` array from that single closest event.
+* [ ] Locate the `outcomes` array and the corresponding `outcomePrices` array.
+  *Note: Polymarket returns these as stringified JSON arrays (e.g., `"[\"USA\", \"Draw\", \"Wales\"]"`). Unmarshal them properly in Go.*
+* [ ] Parse float string prices (e.g., `"0.30"`) into clean integer percentages (`30, 20, 50`).
+* [ ] Return the following JSON payload:
+  ```json
+  {
+    "fixtureName": "USA vs Wales",
+    "percentHome": 30,
+    "percentDraw": 20,
+    "percentAway": 50,
+    "source": "Polymarket"
+  }
+  ```
+
+### 9.3 Frontend: Binding the Next Match Oracle (React TSX)
+* [ ] In `src/components/PulseDashboard.tsx`, ensure the Match Oracle panel only consumes data from `/api/v1/predictions/match/next`.
+* [ ] Update the 3-Way Probability Bar: Bind inline width styles to the new `percentHome`, `percentDraw`, `percentAway` values.
+  ```tsx
+  <div className="flex h-4 w-full rounded-full overflow-hidden gap-[2px] bg-zinc-950 p-[2px] border border-zinc-800">
+    <div style={{ width: `${data.percentHome}%` }} className="bg-emerald-500 h-full rounded-l-full shadow-[0_0_8px_#10b981]" />
+    <div style={{ width: `${data.percentDraw}%` }} className="bg-amber-500 h-full shadow-[0_0_8px_#f59e0b]" />
+    <div style={{ width: `${data.percentAway}%` }} className="bg-rose-500 h-full rounded-r-full shadow-[0_0_8px_#f43f5e]" />
+  </div>
+  ```
+* [ ] Hero Header: Remove any leftover API-Football components (old "Advice" text box). Replace with a glowing neon header displaying `data.fixtureName`.
+* [ ] Stat Labels: Display percentages below the bar: `HOME {data.percentHome}%`, `DRAW {data.percentDraw}%`, `AWAY {data.percentAway}%`.

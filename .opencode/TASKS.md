@@ -78,6 +78,28 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 
 ---
 
+## Phase 9: The Next Match Oracle (Polymarket Gamma Integration)
+
+### 9.1 Backend: The Gamma API Fetcher (Go)
+- [ ] Update the route `GET /api/v1/predictions/match/next`
+- [ ] HTTP GET to `https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100`
+- [ ] Filter for events tagged "World Cup" or "Soccer"
+- [ ] Sort chronologically by `endDate`/`startDate` — find the single closest upcoming match
+
+### 9.2 Backend: Data Parsing & Formatting
+- [ ] Extract `markets` array from the closest event
+- [ ] Unmarshal stringified JSON arrays (`outcomes`, `outcomePrices`)
+- [ ] Parse float prices into integer percentages
+- [ ] Return `{ fixtureName, percentHome, percentDraw, percentAway, source: "Polymarket" }`
+
+### 9.3 Frontend: Binding the Next Match Oracle (React TSX)
+- [ ] Match Oracle panel reads from `/api/v1/predictions/match/next` only
+- [ ] Update 3-Way Probability Bar with new `percentHome/Draw/Away` values
+- [ ] Hero Header: replace API-Football "Advice" box with glowing `data.fixtureName`
+- [ ] Stat Labels: `HOME X%`, `DRAW Y%`, `AWAY Z%` below the bar
+
+---
+
 ## Success Criteria
 
 - [ ] `GET /api/v1/predictions/global` returns 200 with sorted odds
