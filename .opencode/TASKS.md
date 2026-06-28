@@ -50,31 +50,31 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 *Prerequisite: Phase 7 curl tests verified.*
 
 ### 8.1 TypeScript Contracts
-- [ ] Create `src/types/oracle.ts`
-  - [ ] `GlobalFavorite { team: string; probability: number }`
-  - [ ] `MatchOracle { fixtureId: string; winnerAdvice: string; percentHome: number; percentDraw: number; percentAway: number }`
+- [x] Create `src/types/oracle.ts`
+  - [x] `GlobalFavorite { team: string; probability: number }`
+  - [x] `MatchOracle { fixtureId: string; winnerAdvice: string; percentHome: number; percentDraw: number; percentAway: number }`
 
 ### 8.2 Canvas & Layout Architecture
-- [ ] Create `src/components/PulseDashboard.tsx`
-  - [ ] Deep space base: `min-h-screen bg-[#09090b] text-zinc-100 p-6 font-sans`
-  - [ ] Responsive 12-col grid: `grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto`
-  - [ ] Ambient cyberpunk orb: `fixed top-1/3 left-1/2` with cyan blur
+- [x] Create `src/components/PulseDashboard.tsx`
+  - [x] Deep space base: `min-h-screen bg-[#09090b] text-zinc-100 p-6 font-sans`
+  - [x] Responsive 12-col grid: `grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto`
+  - [x] Ambient cyberpunk orb: `fixed top-1/3 left-1/2` with cyan blur
 
 ### 8.3 Left Viewport: The Wisdom Wheel (`lg:col-span-7`)
-- [ ] Fetch data from `/api/v1/predictions/global`
-- [ ] Glassmorphic team rows with hover effects
-- [ ] Neon glow progress bar (gradient from cyan→blue→indigo)
-- [ ] Gold/silver/bronze gradient text for ranks #1–#3
+- [x] Fetch data from `/api/v1/predictions/global`
+- [x] Glassmorphic team rows with hover effects
+- [x] Neon glow progress bar (gradient from cyan→blue→indigo)
+- [x] Gold/silver/bronze gradient text for ranks #1–#3
 
 ### 8.4 Right Viewport: The Match Oracle (`lg:col-span-5`)
-- [ ] Fetch data from `/api/v1/predictions/match/{next_fixture_id}`
-- [ ] Glassmorphic main card with Cyber Scanner accent line
-- [ ] Glowing callout box for recommendation advice
-- [ ] 3-Way Probability Bar (emerald / amber / rose)
+- [x] Fetch data from `/api/v1/predictions/match/{next_fixture_id}`
+- [x] Glassmorphic main card with Cyber Scanner accent line
+- [x] Glowing callout box for recommendation advice
+- [x] 3-Way Probability Bar (emerald / amber / rose)
 
 ### 8.5 Polish & Loading States
-- [ ] Glassmorphic skeleton placeholders for `isLoading` state
-- [ ] `animate-fade-in` entry transition on master wrapper
+- [x] Glassmorphic skeleton placeholders for `isLoading` state
+- [x] `animate-fade-in` entry transition on master wrapper
 
 ---
 
