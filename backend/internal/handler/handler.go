@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"sort"
 	"strconv"
@@ -360,16 +361,17 @@ func (h *Handler) GetGlobalLeaderboard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, top10)
 }
 
-// fetchPolymarketTeams queries the Polymarket gamma-api for all "Will X win the 2026 FIFA World Cup?" markets,
-// extracts team names and "Yes" probabilities, and returns them sorted descending by probability.
+// fetchPolymarketTeams queries the Polymarket gamma-api for all World Cup winner markets
+// via /markets?active=true&limit=50 (matching the user's Python script approach).
+// Extracts team names and "Yes" probabilities, returns sorted descending by probability.
 func (h *Handler) fetchPolymarketTeams(ctx context.Context) ([]GlobalLeaderboardResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://gamma-api.polymarket.com/markets?limit=100", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://gamma-api.polymarket.com/markets?active=true&limit=50", nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := gammaHTTPClient()
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -380,6 +382,7 @@ func (h *Handler) fetchPolymarketTeams(ctx context.Context) ([]GlobalLeaderboard
 	var markets []struct {
 		Question      string `json:"question"`
 		OutcomePrices string `json:"outcomePrices"`
+		Event         string `json:"event"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&markets); err != nil {
 		return nil, fmt.Errorf("decoding polymarket response: %w", err)
@@ -387,6 +390,10 @@ func (h *Handler) fetchPolymarketTeams(ctx context.Context) ([]GlobalLeaderboard
 
 	var results []GlobalLeaderboardResponse
 	for _, m := range markets {
+		// Skip non-World Cup markets (check both question text and event field)
+		if !strings.Contains(m.Question, "World Cup") && !strings.Contains(m.Event, "World Cup") {
+			continue
+		}
 		// Parse team name from "Will <Team> win the 2026 FIFA World Cup?"
 		team := parseWorldCupTeam(m.Question)
 		if team == "" {
@@ -432,116 +439,130 @@ func parseWorldCupTeam(question string) string {
 
 // --- Match Oracle ---
 
-// NextMatchOracleResponse is the Polymarket-powered next match response.
-type NextMatchOracleResponse struct {
-	FixtureName string `json:"fixtureName"`
-	PercentHome int    `json:"percentHome"`
-	PercentDraw int    `json:"percentDraw"`
-	PercentAway int    `json:"percentAway"`
-	Source      string `json:"source"`
+// UpcomingMatchResponse is a single upcoming match prediction with date info.
+type UpcomingMatchResponse struct {
+	ID       string   `json:"id"`
+	Match    string   `json:"match"`
+	EndDate  string   `json:"endDate"`
+	Outcomes []string `json:"outcomes"`
+	Odds     []string `json:"odds"`
 }
 
-// gammaEvent represents a Polymarket gamma-api event with markets.
-type gammaEvent struct {
-	Title      string        `json:"title"`
-	EndDate    string        `json:"endDate"`
-	StartDate  string        `json:"startDate"`
-	Tags       []string      `json:"tags"`
-	Markets    []gammaMarket `json:"markets"`
+// gammaEventV2 represents a Polymarket gamma-api event with markets (uses q=World Cup search).
+type gammaEventV2 struct {
+	Title   string           `json:"title"`
+	Markets []gammaMarketV2  `json:"markets"`
 }
 
-// gammaMarket represents a market inside a gamma-api event.
-type gammaMarket struct {
+// gammaMarketV2 represents a market inside a gamma-api event, with question/endDate fields.
+type gammaMarketV2 struct {
+	ID            string `json:"id"`
+	Question      string `json:"question"`
+	EndDate       string `json:"endDate"`
 	Outcomes      string `json:"outcomes"`
 	OutcomePrices string `json:"outcomePrices"`
 }
 
-// GetNextMatchOracle returns the single closest upcoming World Cup match prediction from Polymarket.
+// GetNextMatchOracle returns the top-10 upcoming World Cup match predictions from Polymarket.
 func (h *Handler) GetNextMatchOracle(w http.ResponseWriter, r *http.Request) {
-	result, err := h.fetchNextMatch(r.Context())
+	matches, err := h.fetchUpcomingMatches(r.Context())
 	if err != nil {
-		h.logger.Warn("failed to fetch next match from Polymarket, using fallback", "error", err)
-		result = fallbackNextMatch()
+		h.logger.Warn("failed to fetch upcoming matches from Polymarket, using fallback", "error", err)
+		matches = fallbackUpcomingMatches()
 	}
-	writeJSON(w, http.StatusOK, result)
+	writeJSON(w, http.StatusOK, matches)
 }
 
-// fetchNextMatch queries Polymarket gamma-api events, filters for World Cup / Soccer,
-// sorts by date, and returns the single closest upcoming match with crowd probabilities.
-func (h *Handler) fetchNextMatch(ctx context.Context) (*NextMatchOracleResponse, error) {
-	url := "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100"
+// fetchUpcomingMatches queries Polymarket gamma-api events with q=World%20Cup,
+// iterates each event's markets, filters for markets where the question contains "vs"
+// (individual match predictions, not tournament-level "winner" markets),
+// sorts by endDate ascending, and returns the top 10.
+func (h *Handler) fetchUpcomingMatches(ctx context.Context) ([]UpcomingMatchResponse, error) {
+	url := "https://gamma-api.polymarket.com/events?active=true&closed=false&q=World%20Cup&limit=50"
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := gammaHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("calling polymarket events api: %w", err)
 	}
 	defer resp.Body.Close()
 
-	var events []gammaEvent
+	var events []gammaEventV2
 	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
 		return nil, fmt.Errorf("decoding polymarket events: %w", err)
 	}
 
-	// Filter for events tagged "World Cup" or "Soccer"
-	var filtered []gammaEvent
-	for _, e := range events {
-		for _, tag := range e.Tags {
-			if strings.EqualFold(tag, "World Cup") || strings.EqualFold(tag, "Soccer") {
-				filtered = append(filtered, e)
-				break
+	var matchMarkets []UpcomingMatchResponse
+	for _, ev := range events {
+		for _, m := range ev.Markets {
+			q := strings.ToLower(m.Question)
+			// Filter for individual match predictions: must contain "vs" but NOT "winner"
+			if !strings.Contains(q, "vs") || strings.Contains(q, "winner") {
+				continue
 			}
+			// Parse stringified JSON arrays for outcomes and odds
+			var outcomes []string
+			if err := json.Unmarshal([]byte(m.Outcomes), &outcomes); err != nil || len(outcomes) == 0 {
+				continue
+			}
+			var odds []string
+			if err := json.Unmarshal([]byte(m.OutcomePrices), &odds); err != nil || len(odds) == 0 {
+				continue
+			}
+			matchMarkets = append(matchMarkets, UpcomingMatchResponse{
+				ID:       m.ID,
+				Match:    m.Question,
+				EndDate:  m.EndDate,
+				Outcomes: outcomes,
+				Odds:     odds,
+			})
 		}
 	}
 
-	if len(filtered) == 0 {
-		return nil, fmt.Errorf("no upcoming World Cup events found from Polymarket")
+	if len(matchMarkets) == 0 {
+		return nil, fmt.Errorf("no upcoming vs-type match markets found from Polymarket")
 	}
 
-	// Sort by endDate ascending — closest match first
-	sort.Slice(filtered, func(i, j int) bool {
-		return filtered[i].EndDate < filtered[j].EndDate
+	// Sort by endDate ascending (closest match first)
+	sort.Slice(matchMarkets, func(i, j int) bool {
+		return matchMarkets[i].EndDate < matchMarkets[j].EndDate
 	})
 
-	closest := filtered[0]
-
-	if len(closest.Markets) == 0 {
-		return nil, fmt.Errorf("closest event has no markets")
+	// Return top 10
+	if len(matchMarkets) > 10 {
+		matchMarkets = matchMarkets[:10]
 	}
 
-	mkt := closest.Markets[0]
+	return matchMarkets, nil
+}
 
-	// Unmarshal stringified JSON arrays
-	var outcomes []string
-	if err := json.Unmarshal([]byte(mkt.Outcomes), &outcomes); err != nil {
-		return nil, fmt.Errorf("unmarshaling outcomes: %w", err)
+// gammaHTTPClient returns an HTTP client that resolves gamma-api.polymarket.com
+// via a custom dialer. If system DNS fails (common inside Docker), it falls back
+// to a known Cloudflare IP for gamma-api.
+func gammaHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				if strings.Contains(addr, "gamma-api.polymarket.com:443") {
+					// Try system DNS first (works via extra_hosts in Docker, or native macOS)
+					ips, err := net.DefaultResolver.LookupHost(ctx, "gamma-api.polymarket.com")
+					if err == nil && len(ips) > 0 {
+						addr = ips[0] + ":443"
+					} else {
+						// Fallback to known IP (Cloudflare proxy)
+						addr = "172.64.153.51:443"
+					}
+				}
+				return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, network, addr)
+			},
+		},
 	}
-
-	var prices []string
-	if err := json.Unmarshal([]byte(mkt.OutcomePrices), &prices); err != nil {
-		return nil, fmt.Errorf("unmarshaling outcome prices: %w", err)
-	}
-
-	if len(outcomes) < 3 || len(prices) < 3 {
-		return nil, fmt.Errorf("insufficient outcomes or prices for tri-match market")
-	}
-
-	homePct, _ := strconv.ParseFloat(prices[0], 64)
-	drawPct, _ := strconv.ParseFloat(prices[1], 64)
-	awayPct, _ := strconv.ParseFloat(prices[2], 64)
-
-	return &NextMatchOracleResponse{
-		FixtureName: closest.Title,
-		PercentHome: int(homePct * 100),
-		PercentDraw: int(drawPct * 100),
-		PercentAway: int(awayPct * 100),
-		Source:      "Polymarket",
-	}, nil
 }
 
 // MatchOracleResponse is the prediction advice for a specific fixture.
@@ -689,15 +710,20 @@ func fallbackLeaderboard() []GlobalLeaderboardResponse {
 	}
 }
 
-// fallbackNextMatch returns last-known intact Polymarket data
-// used when gamma-api events endpoint is unreachable.
-func fallbackNextMatch() *NextMatchOracleResponse {
-	return &NextMatchOracleResponse{
-		FixtureName: "USA vs Wales",
-		PercentHome: 30,
-		PercentDraw: 20,
-		PercentAway: 50,
-		Source:      "Polymarket",
+// fallbackUpcomingMatches returns sample World Cup 2026 match data with realistic dates
+// used when gamma-api is unreachable or has no vs-type match markets.
+func fallbackUpcomingMatches() []UpcomingMatchResponse {
+	return []UpcomingMatchResponse{
+		{Match: "South Africa vs Canada", EndDate: "2026-06-29T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.50", "0.50"}},
+		{Match: "USA vs Morocco", EndDate: "2026-06-30T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.55", "0.45"}},
+		{Match: "Argentina vs Portugal", EndDate: "2026-07-01T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.60", "0.40"}},
+		{Match: "France vs Netherlands", EndDate: "2026-07-02T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.65", "0.35"}},
+		{Match: "England vs Spain", EndDate: "2026-07-03T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.50", "0.50"}},
+		{Match: "Brazil vs Germany", EndDate: "2026-07-04T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.55", "0.45"}},
+		{Match: "Italy vs Belgium", EndDate: "2026-07-05T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.50", "0.50"}},
+		{Match: "Japan vs Nigeria", EndDate: "2026-07-06T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.45", "0.55"}},
+		{Match: "Australia vs Denmark", EndDate: "2026-07-07T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.40", "0.60"}},
+		{Match: "Mexico vs Senegal", EndDate: "2026-07-08T00:00:00Z", Outcomes: []string{"Team A", "Team B"}, Odds: []string{"0.50", "0.50"}},
 	}
 }
 
