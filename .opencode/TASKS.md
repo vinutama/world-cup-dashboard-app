@@ -7,13 +7,12 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 ## Phase 7: Backend Engine & Caching (Golang + Docker)
 
 ### 7.1 Docker Compose Infrastructure
-- [ ] Add Redis 7-alpine container to `docker-compose.yml`
-  - [ ] Port 6379:6379
-  - [ ] `redis_data` volume mapped to `/data`
-  - [ ] `container_name: worldcup_redis`
-  - [ ] `command: redis-server --appendonly yes`
-- [ ] Declare `redis_data` volume at bottom of compose file
-- [ ] Add `REDIS_ADDR=redis:6379` env var to the `backend` service
+- [x] Add Redis 7-alpine container to `docker-compose.yml`
+  - [x] `redis_data` volume mapped to `/data`
+  - [x] `container_name: worldcup_redis`
+  - [x] `command: redis-server --appendonly yes`
+- [x] Declare `redis_data` volume at bottom of compose file
+- [x] Add `REDIS_ADDR=redis:6379` env var to the `backend` service
 
 ### 7.2 Golang Redis Client Initialization
 - [ ] Run `go get github.com/redis/go-redis/v9`
