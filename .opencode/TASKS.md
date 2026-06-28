@@ -81,16 +81,16 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 ## Phase 9: The Next Match Oracle (Polymarket Gamma Integration)
 
 ### 9.1 Backend: The Gamma API Fetcher (Go)
-- [ ] Update the route `GET /api/v1/predictions/match/next`
-- [ ] HTTP GET to `https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100`
-- [ ] Filter for events tagged "World Cup" or "Soccer"
-- [ ] Sort chronologically by `endDate`/`startDate` — find the single closest upcoming match
+- [x] Update the route `GET /api/v1/predictions/match/next`
+- [x] HTTP GET to `https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100`
+- [x] Filter for events tagged "World Cup" or "Soccer"
+- [x] Sort chronologically by `endDate`/`startDate` — find the single closest upcoming match
 
 ### 9.2 Backend: Data Parsing & Formatting
-- [ ] Extract `markets` array from the closest event
-- [ ] Unmarshal stringified JSON arrays (`outcomes`, `outcomePrices`)
-- [ ] Parse float prices into integer percentages
-- [ ] Return `{ fixtureName, percentHome, percentDraw, percentAway, source: "Polymarket" }`
+- [x] Extract `markets` array from the closest event (done in 9.1)
+- [x] Unmarshal stringified JSON arrays (`outcomes`, `outcomePrices`) (done in 9.1)
+- [x] Parse float prices into integer percentages (done in 9.1)
+- [x] Return `{ fixtureName, percentHome, percentDraw, percentAway, source: "Polymarket" }` (done in 9.1)
 
 ### 9.3 Frontend: Binding the Next Match Oracle (React TSX)
 - [ ] Match Oracle panel reads from `/api/v1/predictions/match/next` only
