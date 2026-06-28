@@ -131,8 +131,14 @@ function MatchOracleList({ data, loading }: { data: UpcomingMatch[] | null; load
                 <div className="text-sm font-semibold text-zinc-200 truncate">
                   {m.match}
                 </div>
-                <div className="text-xs text-zinc-500 mt-0.5">
-                  {formatDate(m.endDate)}
+                <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
+                  <span>{formatDate(m.endDate)}</span>
+                  {m.venue && (
+                    <>
+                      <span className="text-zinc-700">·</span>
+                      <span className="truncate">{m.venue}</span>
+                    </>
+                  )}
                 </div>
               </div>
               {/* Odds pills */}
