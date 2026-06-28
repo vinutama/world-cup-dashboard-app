@@ -188,3 +188,18 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 ### 10.3 Leaderboard refactor
 - [x] `fetchPolymarketTeams` uses `parseRawJsonSlice` + `priceToPercent`
 
+## Phase 11: Unified Polymarket data source — match oracle uses WC Winner markets + math/rand draw
+
+### 11.1 Shared data pipeline
+- [x] Both leaderboard and match oracle call `fetchPolymarketTeams` (one data source)
+- [x] Match oracle derives 3-way odds from WC Winner probabilities
+
+### 11.2 Random draw percentage
+- [x] `math/rand.Intn(25) + 8` → random draw 8-32%
+- [x] Remaining probability split proportional to WC Winner strength
+- [x] Source label: "Polymarket WC Winner markets"
+
+### 11.3 No fallback
+- [x] `[]` when Gamma unreachable (both endpoints)
+- [x] "Equal odds (no Polymarket data)" when both teams unrated
+
