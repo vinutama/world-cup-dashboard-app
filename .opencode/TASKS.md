@@ -93,10 +93,10 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 - [x] Return `{ fixtureName, percentHome, percentDraw, percentAway, source: "Polymarket" }` (done in 9.1)
 
 ### 9.3 Frontend: Binding the Next Match Oracle (React TSX)
-- [ ] Match Oracle panel reads from `/api/v1/predictions/match/next` only
-- [ ] Update 3-Way Probability Bar with new `percentHome/Draw/Away` values
-- [ ] Hero Header: replace API-Football "Advice" box with glowing `data.fixtureName`
-- [ ] Stat Labels: `HOME X%`, `DRAW Y%`, `AWAY Z%` below the bar
+- [x] Match Oracle panel reads from `/api/v1/predictions/match/next` only
+- [x] Update 3-Way Probability Bar with new `percentHome/Draw/Away` values
+- [x] Hero Header: replace API-Football "Advice" box with glowing `data.fixtureName`
+- [x] Stat Labels: `HOME X%`, `DRAW Y%`, `AWAY Z%` below the bar
 
 ---
 
