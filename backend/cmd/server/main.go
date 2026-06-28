@@ -2,9 +2,13 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/mkhevin/world-cup-dashboard/backend/internal/handler"
 	"github.com/mkhevin/world-cup-dashboard/backend/internal/middleware"
@@ -15,6 +19,25 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
+
+	// Initialize Redis client
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "",
+		DB:       0,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		logger.Error("redis connection failed", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("redis connected", "addr", redisAddr)
 
 	// Initialize layers
 	httpClient := &http.Client{}

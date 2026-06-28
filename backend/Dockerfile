@@ -1,5 +1,5 @@
 # Backend Dockerfile — multi-stage Go build
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY go.mod* ./
 RUN if [ -f go.sum ]; then go mod download; fi
