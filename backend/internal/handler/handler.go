@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/mkhevin/world-cup-dashboard/backend/internal/model"
 )
 
@@ -31,17 +33,19 @@ type MatchService interface {
 
 // Handler groups all HTTP handlers and their dependencies.
 type Handler struct {
-	yearSvc  YearService
-	matchSvc MatchService
-	logger   *slog.Logger
+	yearSvc        YearService
+	matchSvc       MatchService
+	rdb            *redis.Client
+	apiFootballKey string
+	logger         *slog.Logger
 }
 
-// New creates a new Handler with the given services and logger.
-func New(yearSvc YearService, matchSvc MatchService, logger *slog.Logger) *Handler {
+// New creates a new Handler with the given services, Redis client, API key, and logger.
+func New(yearSvc YearService, matchSvc MatchService, rdb *redis.Client, apiFootballKey string, logger *slog.Logger) *Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Handler{yearSvc: yearSvc, matchSvc: matchSvc, logger: logger}
+	return &Handler{yearSvc: yearSvc, matchSvc: matchSvc, rdb: rdb, apiFootballKey: apiFootballKey, logger: logger}
 }
 
 // RegisterRoutes registers all API routes on the given mux.
@@ -54,6 +58,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/matches/{id}", h.GetMatch)
 	mux.HandleFunc("GET /api/v1/goal-avalanche", h.GetGoalAvalanche)
 	mux.HandleFunc("GET /api/v1/predictions/global", h.GetGlobalLeaderboard)
+	mux.HandleFunc("GET /api/v1/predictions/match/{fixture_id}", h.GetMatchOracle)
 }
 
 // Health responds with service status.
@@ -423,6 +428,136 @@ func parseWorldCupTeam(question string) string {
 		return ""
 	}
 	return question[len(prefix) : len(question)-len(suffix)]
+}
+
+// --- Match Oracle ---
+
+// MatchOracleResponse is the prediction advice for a specific fixture.
+type MatchOracleResponse struct {
+	FixtureID    int    `json:"fixtureId"`
+	Advice       string `json:"advice"`
+	PercentHome  int    `json:"percentHome"`
+	PercentDraw  int    `json:"percentDraw"`
+	PercentAway  int    `json:"percentAway"`
+}
+
+// GetMatchOracle returns cached or fresh prediction data for a fixture.
+func (h *Handler) GetMatchOracle(w http.ResponseWriter, r *http.Request) {
+	fixtureIDStr := r.PathValue("fixture_id")
+	if fixtureIDStr == "" {
+		writeError(w, http.StatusBadRequest, "missing fixture_id path parameter")
+		return
+	}
+	fixtureID, err := strconv.Atoi(fixtureIDStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "fixture_id must be a number")
+		return
+	}
+
+	ctx := r.Context()
+	cacheKey := fmt.Sprintf("match:oracle:%d", fixtureID)
+
+	// 1. Check Redis cache
+	if h.rdb != nil {
+		cached, err := h.rdb.Get(ctx, cacheKey).Result()
+		if err == nil {
+			var resp MatchOracleResponse
+			if json.Unmarshal([]byte(cached), &resp) == nil {
+				h.logger.Debug("match oracle cache hit", "fixture", fixtureID)
+				writeJSON(w, http.StatusOK, resp)
+				return
+			}
+		}
+	}
+
+	// 2. Cache miss — fetch from API-Football
+	result, err := h.fetchMatchPrediction(ctx, fixtureID)
+	if err != nil {
+		h.logger.Error("match oracle fetch failed", "fixture", fixtureID, "error", err)
+		writeError(w, http.StatusBadGateway, "failed to fetch match prediction")
+		return
+	}
+
+	// 3. Store in Redis (6h TTL)
+	if h.rdb != nil {
+		payload, _ := json.Marshal(result)
+		if err := h.rdb.Set(ctx, cacheKey, string(payload), 6*time.Hour).Err(); err != nil {
+			h.logger.Error("match oracle cache write failed", "fixture", fixtureID, "error", err)
+		}
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+// apiFootballPredictionResponse is the raw response from the API-Football /predictions endpoint.
+type apiFootballPredictionResponse struct {
+	Response []struct {
+		Predictions struct {
+			Advice  string `json:"advice"`
+			Percent struct {
+				Home string `json:"home"`
+				Draw string `json:"draw"`
+				Away string `json:"away"`
+			} `json:"percent"`
+		} `json:"predictions"`
+	} `json:"response"`
+}
+
+// fetchMatchPrediction calls the API-Football predictions endpoint.
+func (h *Handler) fetchMatchPrediction(ctx context.Context, fixtureID int) (*MatchOracleResponse, error) {
+	url := fmt.Sprintf("https://v3.football.api-sports.io/predictions?fixture=%d", fixtureID)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("x-rapidapi-key", h.apiFootballKey)
+	req.Header.Set("x-rapidapi-host", "v3.football.api-sports.io")
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling api-football: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("api-football returned status %d", resp.StatusCode)
+	}
+
+	var raw apiFootballPredictionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("decoding api-football response: %w", err)
+	}
+
+	if len(raw.Response) == 0 {
+		return nil, fmt.Errorf("no prediction data for fixture %d", fixtureID)
+	}
+
+	p := raw.Response[0].Predictions
+
+	homePct := parsePercent(p.Percent.Home)
+	drawPct := parsePercent(p.Percent.Draw)
+	awayPct := parsePercent(p.Percent.Away)
+
+	return &MatchOracleResponse{
+		FixtureID:   fixtureID,
+		Advice:      p.Advice,
+		PercentHome: homePct,
+		PercentDraw: drawPct,
+		PercentAway: awayPct,
+	}, nil
+}
+
+// parsePercent converts a percentage string like "47.5%" or "47%" to an integer.
+func parsePercent(s string) int {
+	s = strings.TrimSpace(s)
+	s = strings.TrimSuffix(s, "%")
+	if idx := strings.Index(s, "."); idx >= 0 {
+		s = s[:idx]
+	}
+	v, _ := strconv.Atoi(s)
+	return v
 }
 
 // writeJSON sends a JSON response with the given status code.
