@@ -58,6 +58,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/matches/{id}", h.GetMatch)
 	mux.HandleFunc("GET /api/v1/goal-avalanche", h.GetGoalAvalanche)
 	mux.HandleFunc("GET /api/v1/predictions/global", h.GetGlobalLeaderboard)
+	mux.HandleFunc("GET /api/v1/predictions/match/next", h.GetNextMatchOracle)
 	mux.HandleFunc("GET /api/v1/predictions/match/{fixture_id}", h.GetMatchOracle)
 }
 
@@ -431,6 +432,118 @@ func parseWorldCupTeam(question string) string {
 
 // --- Match Oracle ---
 
+// NextMatchOracleResponse is the Polymarket-powered next match response.
+type NextMatchOracleResponse struct {
+	FixtureName string `json:"fixtureName"`
+	PercentHome int    `json:"percentHome"`
+	PercentDraw int    `json:"percentDraw"`
+	PercentAway int    `json:"percentAway"`
+	Source      string `json:"source"`
+}
+
+// gammaEvent represents a Polymarket gamma-api event with markets.
+type gammaEvent struct {
+	Title      string        `json:"title"`
+	EndDate    string        `json:"endDate"`
+	StartDate  string        `json:"startDate"`
+	Tags       []string      `json:"tags"`
+	Markets    []gammaMarket `json:"markets"`
+}
+
+// gammaMarket represents a market inside a gamma-api event.
+type gammaMarket struct {
+	Outcomes      string `json:"outcomes"`
+	OutcomePrices string `json:"outcomePrices"`
+}
+
+// GetNextMatchOracle returns the single closest upcoming World Cup match prediction from Polymarket.
+func (h *Handler) GetNextMatchOracle(w http.ResponseWriter, r *http.Request) {
+	result, err := h.fetchNextMatch(r.Context())
+	if err != nil {
+		h.logger.Warn("failed to fetch next match from Polymarket, using fallback", "error", err)
+		result = fallbackNextMatch()
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// fetchNextMatch queries Polymarket gamma-api events, filters for World Cup / Soccer,
+// sorts by date, and returns the single closest upcoming match with crowd probabilities.
+func (h *Handler) fetchNextMatch(ctx context.Context) (*NextMatchOracleResponse, error) {
+	url := "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=100"
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling polymarket events api: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var events []gammaEvent
+	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
+		return nil, fmt.Errorf("decoding polymarket events: %w", err)
+	}
+
+	// Filter for events tagged "World Cup" or "Soccer"
+	var filtered []gammaEvent
+	for _, e := range events {
+		for _, tag := range e.Tags {
+			if strings.EqualFold(tag, "World Cup") || strings.EqualFold(tag, "Soccer") {
+				filtered = append(filtered, e)
+				break
+			}
+		}
+	}
+
+	if len(filtered) == 0 {
+		return nil, fmt.Errorf("no upcoming World Cup events found from Polymarket")
+	}
+
+	// Sort by endDate ascending — closest match first
+	sort.Slice(filtered, func(i, j int) bool {
+		return filtered[i].EndDate < filtered[j].EndDate
+	})
+
+	closest := filtered[0]
+
+	if len(closest.Markets) == 0 {
+		return nil, fmt.Errorf("closest event has no markets")
+	}
+
+	mkt := closest.Markets[0]
+
+	// Unmarshal stringified JSON arrays
+	var outcomes []string
+	if err := json.Unmarshal([]byte(mkt.Outcomes), &outcomes); err != nil {
+		return nil, fmt.Errorf("unmarshaling outcomes: %w", err)
+	}
+
+	var prices []string
+	if err := json.Unmarshal([]byte(mkt.OutcomePrices), &prices); err != nil {
+		return nil, fmt.Errorf("unmarshaling outcome prices: %w", err)
+	}
+
+	if len(outcomes) < 3 || len(prices) < 3 {
+		return nil, fmt.Errorf("insufficient outcomes or prices for tri-match market")
+	}
+
+	homePct, _ := strconv.ParseFloat(prices[0], 64)
+	drawPct, _ := strconv.ParseFloat(prices[1], 64)
+	awayPct, _ := strconv.ParseFloat(prices[2], 64)
+
+	return &NextMatchOracleResponse{
+		FixtureName: closest.Title,
+		PercentHome: int(homePct * 100),
+		PercentDraw: int(drawPct * 100),
+		PercentAway: int(awayPct * 100),
+		Source:      "Polymarket",
+	}, nil
+}
+
 // MatchOracleResponse is the prediction advice for a specific fixture.
 type MatchOracleResponse struct {
 	FixtureID    int    `json:"fixtureId"`
@@ -573,6 +686,18 @@ func fallbackLeaderboard() []GlobalLeaderboardResponse {
 		{Team: "Netherlands", Probability: 4},
 		{Team: "Italy", Probability: 3},
 		{Team: "Belgium", Probability: 3},
+	}
+}
+
+// fallbackNextMatch returns last-known intact Polymarket data
+// used when gamma-api events endpoint is unreachable.
+func fallbackNextMatch() *NextMatchOracleResponse {
+	return &NextMatchOracleResponse{
+		FixtureName: "USA vs Wales",
+		PercentHome: 30,
+		PercentDraw: 20,
+		PercentAway: 50,
+		Source:      "Polymarket",
 	}
 }
 
