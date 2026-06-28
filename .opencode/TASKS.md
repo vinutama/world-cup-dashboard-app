@@ -140,3 +140,22 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 
 ### 9.7.3 Odds Adjusted to Realistic Values
 - [x] Each match has sensible fan/win probabilities based on team strength
+
+## Phase 9.8: Derive match odds from Polymarket WC Winner prices — 3-way with draw%
+
+### 9.8.1 Remove All Fallback Data
+- [x] Delete `fallbackUpcomingMatches()` — no hardcoded predictions
+- [x] When gamma-api is unreachable, return `[]` instead of fallback
+
+### 9.8.2 Live Polymarket Data → 3-Way Match Odds
+- [x] `fetchWcWinnerProbabilities()` — queries gamma-api `/markets?active=true&limit=200` for ALL team probabilities
+- [x] Team name mapping: `United States→USA`, `DR Congo→Congo DR`
+- [x] For unrated teams: use residual 0.002 (0.2%) instead of 0
+- [x] `derive3WayOdds()` converts two team WC probabilities → 3-way (home/draw/away) match odds
+- [x] Draw probability model: 30% for equal teams, 10% for very unequal
+
+### 9.8.3 Frontend: 3-Way Display
+- [x] `UpcomingMatch` TS type: `percentHome / percentDraw / percentAway` (integers)
+- [x] 3 pills per match row: Home %, Draw %, Away %
+- [x] Source label per match (Polymarket (derived) or Equal odds note)
+- [x] Empty state: No upcoming match predictions available

@@ -3,19 +3,12 @@ export interface GlobalFavorite {
   probability: number;
 }
 
-export interface MatchOracle {
-  fixtureId: number;
-  advice: string;
-  percentHome: number;
-  percentDraw: number;
-  percentAway: number;
-}
-
 export interface UpcomingMatch {
-  id: string;
   match: string;
   endDate: string;
   venue: string;
-  outcomes: string[];
-  odds: string[];
+  percentHome: number;
+  percentDraw: number;
+  percentAway: number;
+  source: string;
 }
