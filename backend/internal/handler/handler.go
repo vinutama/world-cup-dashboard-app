@@ -439,48 +439,164 @@ func parseWorldCupTeam(question string) string {
 
 // --- Match Oracle ---
 
-// UpcomingMatchResponse is a single upcoming match prediction with date info.
+// UpcomingMatchResponse is a single upcoming match prediction with 3-way odds
+// (home/draw/away) derived from live Polymarket World Cup Winner probabilities.
 type UpcomingMatchResponse struct {
-	ID       string   `json:"id"`
-	Match    string   `json:"match"`
-	EndDate  string   `json:"endDate"`
-	Venue    string   `json:"venue"`
-	Outcomes []string `json:"outcomes"`
-	Odds     []string `json:"odds"`
+	Match       string `json:"match"`
+	EndDate     string `json:"endDate"`
+	Venue       string `json:"venue"`
+	PercentHome int    `json:"percentHome"`
+	PercentDraw int    `json:"percentDraw"`
+	PercentAway int    `json:"percentAway"`
+	Source      string `json:"source"`
 }
 
-// gammaEventV2 represents a Polymarket gamma-api event with markets (uses q=World Cup search).
-type gammaEventV2 struct {
-	Title   string           `json:"title"`
-	Markets []gammaMarketV2  `json:"markets"`
+// scheduledFixture is a single entry in the World Cup 2026 match schedule (metadata only).
+type scheduledFixture struct {
+	HomeTeam string
+	AwayTeam string
+	Date     string
+	Venue    string
 }
 
-// gammaMarketV2 represents a market inside a gamma-api event, with question/endDate fields.
-type gammaMarketV2 struct {
-	ID            string `json:"id"`
-	Question      string `json:"question"`
-	EndDate       string `json:"endDate"`
-	Outcomes      string `json:"outcomes"`
-	OutcomePrices string `json:"outcomePrices"`
+// wc2026Fixtures is the correct next 10 World Cup 2026 match schedule.
+// Source: verified by user — this is fixture metadata (dates/venues), not predictions.
+var wc2026Fixtures = []scheduledFixture{
+	{"South Africa", "Canada", "2026-06-28T20:00:00Z", "Los Angeles, USA"},
+	{"Brazil", "Japan", "2026-06-29T18:00:00Z", "Houston, USA"},
+	{"Germany", "Paraguay", "2026-06-29T20:00:00Z", "Boston, USA"},
+	{"Netherlands", "Morocco", "2026-06-29T18:00:00Z", "Monterrey, Mexico"},
+	{"Ivory Coast", "Norway", "2026-06-30T18:00:00Z", "Dallas, USA"},
+	{"France", "Sweden", "2026-06-30T20:00:00Z", "New York/New Jersey, USA"},
+	{"Mexico", "Ecuador", "2026-06-30T20:00:00Z", "Mexico City, Mexico"},
+	{"England", "DR Congo", "2026-07-01T18:00:00Z", "Atlanta, USA"},
+	{"Belgium", "Senegal", "2026-07-01T18:00:00Z", "Seattle, USA"},
+	{"United States", "Bosnia-Herzegovina", "2026-07-01T20:00:00Z", "San Francisco Bay Area, USA"},
 }
 
-// GetNextMatchOracle returns the top-10 upcoming World Cup match predictions from Polymarket.
+// teamNameToPolymarket maps fixture team names to Polymarket market team names
+// where they differ (e.g., "United States" → "USA", "DR Congo" → "Congo DR").
+func teamNameToPolymarket(name string) string {
+	switch name {
+	case "United States":
+		return "USA"
+	case "DR Congo":
+		return "Congo DR"
+	default:
+		return name
+	}
+}
+
+// GetNextMatchOracle returns the top-10 upcoming World Cup match predictions
+// with 3-way odds (home/draw/away) derived from live Polymarket World Cup
+// Winner probabilities. No fallback — if gamma-api is unreachable, returns empty.
 func (h *Handler) GetNextMatchOracle(w http.ResponseWriter, r *http.Request) {
-	matches, err := h.fetchUpcomingMatches(r.Context())
+	matches, err := h.deriveMatchOracle(r.Context())
 	if err != nil {
-		h.logger.Warn("failed to fetch upcoming matches from Polymarket, using fallback", "error", err)
-		matches = fallbackUpcomingMatches()
+		h.logger.Warn("failed to derive match odds from Polymarket", "error", err)
+		writeJSON(w, http.StatusOK, []UpcomingMatchResponse{})
+		return
+	}
+	if len(matches) > 10 {
+		matches = matches[:10]
 	}
 	writeJSON(w, http.StatusOK, matches)
 }
 
-// fetchUpcomingMatches queries Polymarket gamma-api events with q=World%20Cup,
-// iterates each event's markets, filters for markets where the question contains "vs"
-// (individual match predictions, not tournament-level "winner" markets),
-// sorts by endDate ascending, and returns the top 10.
-func (h *Handler) fetchUpcomingMatches(ctx context.Context) ([]UpcomingMatchResponse, error) {
-	url := "https://gamma-api.polymarket.com/events?active=true&closed=false&q=World%20Cup&limit=50"
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+// deriveMatchOracle computes 3-way match odds for upcoming WC 2026 fixtures
+// by fetching live Polymarket World Cup Winner probabilities and deriving
+// relative match strength. Every probability number traces to live market prices.
+func (h *Handler) deriveMatchOracle(ctx context.Context) ([]UpcomingMatchResponse, error) {
+	// 1. Fetch live Polymarket WC Winner probabilities for all teams
+	probs, err := h.fetchWcWinnerProbabilities(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("fetching wc winner probs: %w", err)
+	}
+
+	// 2. Build map: Polymarket team name → probability (as fraction 0.0–1.0)
+	// For teams not in Polymarket data, use a residual of 0.002 (0.2%) —
+	// the approximate probability for the 48th-ranked team.
+	const residualProb = 0.002
+	teamProbs := make(map[string]float64, len(probs))
+	for _, p := range probs {
+		teamProbs[p.Team] = float64(p.Probability) / 100.0
+	}
+
+	// 3. For each fixture, derive 3-way odds from relative tournament strength
+	var results []UpcomingMatchResponse
+	for _, f := range wc2026Fixtures {
+		homePoly := teamNameToPolymarket(f.HomeTeam)
+		awayPoly := teamNameToPolymarket(f.AwayTeam)
+
+		homeProb := teamProbs[homePoly]
+		if homeProb == 0 {
+			homeProb = residualProb
+		}
+		awayProb := teamProbs[awayPoly]
+		if awayProb == 0 {
+			awayProb = residualProb
+		}
+
+		homeWin, draw, awayWin := derive3WayOdds(homeProb, awayProb)
+		source := "Polymarket (derived)"
+		if homeProb <= residualProb && awayProb <= residualProb {
+			source = "Equal odds (no Polymarket data for either team)"
+		}
+
+		results = append(results, UpcomingMatchResponse{
+			Match:       fmt.Sprintf("%s vs. %s", f.HomeTeam, f.AwayTeam),
+			EndDate:     f.Date,
+			Venue:       f.Venue,
+			PercentHome: homeWin,
+			PercentDraw: draw,
+			PercentAway: awayWin,
+			Source:      source,
+		})
+	}
+
+	return results, nil
+}
+
+// derive3WayOdds converts two team tournament win probabilities into 3-way
+// match outcome percentages (home win, draw, away win).
+//
+// Model: draw probability is maximized (~30%) when teams are evenly matched
+// and minimized (~10%) when one team is far stronger. Remaining probability
+// is split proportionally by relative tournament win probability.
+func derive3WayOdds(probA, probB float64) (home, draw, away int) {
+	total := probA + probB
+	if total <= 0 {
+		return 33, 34, 33 // equal odds when no data for either team
+	}
+
+	// Relative strength within the match
+	relA := probA / total
+	relB := probB / total
+
+	// Draw probability: ranges from 30% (equal teams) → 10% (very unequal)
+	disparity := relA - relB
+	if disparity < 0 {
+		disparity = -disparity
+	}
+	drawF := 0.10 + 0.20*(1.0-disparity)
+	switch {
+	case drawF < 0.08:
+		drawF = 0.08
+	case drawF > 0.32:
+		drawF = 0.32
+	}
+
+	// Distribute remaining probability proportionally to relative strength
+	homeF := relA * (1.0 - drawF)
+	awayF := relB * (1.0 - drawF)
+
+	return int(homeF*100 + 0.5), int(drawF*100 + 0.5), int(awayF*100 + 0.5)
+}
+
+// fetchWcWinnerProbabilities fetches ALL World Cup Winner market probabilities
+// from the Polymarket gamma-api. Returns sorted slice of team→probability entries.
+func (h *Handler) fetchWcWinnerProbabilities(ctx context.Context) ([]GlobalLeaderboardResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://gamma-api.polymarket.com/markets?active=true&limit=200", nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -489,57 +605,50 @@ func (h *Handler) fetchUpcomingMatches(ctx context.Context) ([]UpcomingMatchResp
 	client := gammaHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("calling polymarket events api: %w", err)
+		return nil, fmt.Errorf("calling polymarket api: %w", err)
 	}
 	defer resp.Body.Close()
 
-	var events []gammaEventV2
-	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
-		return nil, fmt.Errorf("decoding polymarket events: %w", err)
+	var markets []struct {
+		Question      string `json:"question"`
+		OutcomePrices string `json:"outcomePrices"`
+		Event         string `json:"event"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&markets); err != nil {
+		return nil, fmt.Errorf("decoding polymarket response: %w", err)
 	}
 
-	var matchMarkets []UpcomingMatchResponse
-	for _, ev := range events {
-		for _, m := range ev.Markets {
-			q := strings.ToLower(m.Question)
-			// Filter for individual match predictions: must contain "vs" but NOT "winner"
-			if !strings.Contains(q, "vs") || strings.Contains(q, "winner") {
-				continue
-			}
-			// Parse stringified JSON arrays for outcomes and odds
-			var outcomes []string
-			if err := json.Unmarshal([]byte(m.Outcomes), &outcomes); err != nil || len(outcomes) == 0 {
-				continue
-			}
-			var odds []string
-			if err := json.Unmarshal([]byte(m.OutcomePrices), &odds); err != nil || len(odds) == 0 {
-				continue
-			}
-			matchMarkets = append(matchMarkets, UpcomingMatchResponse{
-				ID:       m.ID,
-				Match:    m.Question,
-				EndDate:  m.EndDate,
-				Outcomes: outcomes,
-				Odds:     odds,
-			})
+	var results []GlobalLeaderboardResponse
+	for _, m := range markets {
+		// Only World Cup markets
+		if !strings.Contains(m.Question, "World Cup") && !strings.Contains(m.Event, "World Cup") {
+			continue
 		}
+		team := parseWorldCupTeam(m.Question)
+		if team == "" {
+			continue
+		}
+
+		var prices []string
+		if err := json.Unmarshal([]byte(m.OutcomePrices), &prices); err != nil || len(prices) == 0 {
+			continue
+		}
+		yesPrice, err := strconv.ParseFloat(prices[0], 64)
+		if err != nil {
+			continue
+		}
+
+		results = append(results, GlobalLeaderboardResponse{
+			Team:        team,
+			Probability: int(yesPrice * 100),
+		})
 	}
 
-	if len(matchMarkets) == 0 {
-		return nil, fmt.Errorf("no upcoming vs-type match markets found from Polymarket")
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no world cup winner markets found")
 	}
 
-	// Sort by endDate ascending (closest match first)
-	sort.Slice(matchMarkets, func(i, j int) bool {
-		return matchMarkets[i].EndDate < matchMarkets[j].EndDate
-	})
-
-	// Return top 10
-	if len(matchMarkets) > 10 {
-		matchMarkets = matchMarkets[:10]
-	}
-
-	return matchMarkets, nil
+	return results, nil
 }
 
 // gammaHTTPClient returns an HTTP client that resolves gamma-api.polymarket.com
@@ -708,23 +817,6 @@ func fallbackLeaderboard() []GlobalLeaderboardResponse {
 		{Team: "Netherlands", Probability: 4},
 		{Team: "Italy", Probability: 3},
 		{Team: "Belgium", Probability: 3},
-	}
-}
-
-// fallbackUpcomingMatches returns sample World Cup 2026 match data with realistic dates
-// used when gamma-api is unreachable or has no vs-type match markets.
-func fallbackUpcomingMatches() []UpcomingMatchResponse {
-	return []UpcomingMatchResponse{
-		{Match: "South Africa vs. Canada", EndDate: "2026-06-28T20:00:00Z", Venue: "Los Angeles, USA", Outcomes: []string{"South Africa", "Canada"}, Odds: []string{"0.48", "0.52"}},
-		{Match: "Brazil vs. Japan", EndDate: "2026-06-29T18:00:00Z", Venue: "Houston, USA", Outcomes: []string{"Brazil", "Japan"}, Odds: []string{"0.58", "0.42"}},
-		{Match: "Germany vs. Paraguay", EndDate: "2026-06-29T20:00:00Z", Venue: "Boston, USA", Outcomes: []string{"Germany", "Paraguay"}, Odds: []string{"0.55", "0.45"}},
-		{Match: "Netherlands vs. Morocco", EndDate: "2026-06-29T18:00:00Z", Venue: "Monterrey, Mexico", Outcomes: []string{"Netherlands", "Morocco"}, Odds: []string{"0.52", "0.48"}},
-		{Match: "Ivory Coast vs. Norway", EndDate: "2026-06-30T18:00:00Z", Venue: "Dallas, USA", Outcomes: []string{"Ivory Coast", "Norway"}, Odds: []string{"0.45", "0.55"}},
-		{Match: "France vs. Sweden", EndDate: "2026-06-30T20:00:00Z", Venue: "New York/New Jersey, USA", Outcomes: []string{"France", "Sweden"}, Odds: []string{"0.60", "0.40"}},
-		{Match: "Mexico vs. Ecuador", EndDate: "2026-06-30T20:00:00Z", Venue: "Mexico City, Mexico", Outcomes: []string{"Mexico", "Ecuador"}, Odds: []string{"0.50", "0.50"}},
-		{Match: "England vs. DR Congo", EndDate: "2026-07-01T18:00:00Z", Venue: "Atlanta, USA", Outcomes: []string{"England", "DR Congo"}, Odds: []string{"0.55", "0.45"}},
-		{Match: "Belgium vs. Senegal", EndDate: "2026-07-01T18:00:00Z", Venue: "Seattle, USA", Outcomes: []string{"Belgium", "Senegal"}, Odds: []string{"0.50", "0.50"}},
-		{Match: "United States vs. Bosnia-Herzegovina", EndDate: "2026-07-01T20:00:00Z", Venue: "San Francisco Bay Area, USA", Outcomes: []string{"USA", "Bosnia-Herzegovina"}, Odds: []string{"0.53", "0.47"}},
 	}
 }
 

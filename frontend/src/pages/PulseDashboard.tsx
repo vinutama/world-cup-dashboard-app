@@ -117,43 +117,53 @@ function MatchOracleList({ data, loading }: { data: UpcomingMatch[] | null; load
       </h2>
 
       <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
-        {data.map((m, i) => {
-          const homeOdds = m.odds?.[0] ? (parseFloat(m.odds[0]) * 100).toFixed(0) : '-';
-          const awayOdds = m.odds?.[1] ? (parseFloat(m.odds[1]) * 100).toFixed(0) : '-';
-          return (
-            <div
-              key={m.id || i}
-              className="flex items-center gap-3 bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-3.5 transition-all duration-200 hover:border-emerald-500/40 hover:bg-zinc-700/40"
-            >
-              {/* Rank + match info */}
-              <span className="text-xs font-bold text-zinc-500 w-5 shrink-0">{i + 1}</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-zinc-200 truncate">
-                  {m.match}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
-                  <span>{formatDate(m.endDate)}</span>
-                  {m.venue && (
-                    <>
-                      <span className="text-zinc-700">·</span>
-                      <span className="truncate">{m.venue}</span>
-                    </>
-                  )}
-                </div>
+        {data.map((m, i) => (
+          <div
+            key={`${m.match}-${i}`}
+            className="flex items-center gap-3 bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-3.5 transition-all duration-200 hover:border-emerald-500/40 hover:bg-zinc-700/40"
+          >
+            {/* Rank + match info */}
+            <span className="text-xs font-bold text-zinc-500 w-5 shrink-0">{i + 1}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-zinc-200 truncate">
+                {m.match}
               </div>
-              {/* Odds pills */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                  {homeOdds}%
+              <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
+                <span>{formatDate(m.endDate)}</span>
+                {m.venue && (
+                  <>
+                    <span className="text-zinc-700">·</span>
+                    <span className="truncate">{m.venue}</span>
+                  </>
+                )}
+              </div>
+              <div className="text-[10px] text-zinc-600 mt-0.5 truncate">
+                {m.source}
+              </div>
+            </div>
+            {/* 3-way odds pills */}
+            <div className="flex items-center gap-1 shrink-0">
+              <div className="text-center">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-600 mb-0.5">Home</div>
+                <span className="block text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md text-center">
+                  {m.percentHome}%
                 </span>
-                <span className="text-xs text-zinc-600">vs</span>
-                <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md">
-                  {awayOdds}%
+              </div>
+              <div className="text-center">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-600 mb-0.5">Draw</div>
+                <span className="block text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md text-center">
+                  {m.percentDraw}%
+                </span>
+              </div>
+              <div className="text-center">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-600 mb-0.5">Away</div>
+                <span className="block text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md text-center">
+                  {m.percentAway}%
                 </span>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
