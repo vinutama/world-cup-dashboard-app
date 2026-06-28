@@ -171,3 +171,20 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 - [x] `json.RawMessage` + double-encoded string handling for `outcomePrices`
 - [x] `bytes` + `errors` imports added
 
+## Phase 10: Pure Gamma events query for match oracle + helper refactor
+
+### 10.1 Replace derivation model with pure events query
+- [x] Remove `scheduledFixture`, `wc2026Fixtures`, `teamNameToPolymarket`
+- [x] Remove `deriveMatchOracle`, `derive3WayOdds`, `fetchWcWinnerProbabilities`
+- [x] Add `fetchPureMatchOracle` — queries `/events?active=true&closed=false&limit=100`
+- [x] Filters for "vs" + ("cup" or "match") events
+- [x] Handles 3-way and binary Polymarket outcomes
+- [x] Sorts chronologically by EndDate
+
+### 10.2 Add reusable helpers
+- [x] `parseRawJsonSlice` — safely handles double-encoded JSON arrays
+- [x] `priceToPercent` — converts fractional price strings to int percentages
+
+### 10.3 Leaderboard refactor
+- [x] `fetchPolymarketTeams` uses `parseRawJsonSlice` + `priceToPercent`
+
