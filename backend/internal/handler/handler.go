@@ -2,8 +2,10 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -343,14 +345,13 @@ type GlobalLeaderboardResponse struct {
 const TopLeaderboardTeams = 10
 
 // GetGlobalLeaderboard returns the top-10 World Cup winner predictions from Polymarket.
+// No fallback — when gamma-api is unreachable, returns error with empty array.
 func (h *Handler) GetGlobalLeaderboard(w http.ResponseWriter, r *http.Request) {
-	// Query Polymarket gamma-api for all 2026 FIFA World Cup winner markets.
-	// Each team has a binary market ("Will X win the 2026 FIFA World Cup?"),
-	// where outcomePrices[0] = probability of "Yes".
 	teamMarkets, err := h.fetchPolymarketTeams(r.Context())
 	if err != nil {
-		h.logger.Warn("failed to fetch Polymarket teams, using fallback data", "error", err)
-		teamMarkets = fallbackLeaderboard()
+		h.logger.Warn("failed to fetch Polymarket leaderboard (no fallback)", "error", err)
+		writeJSON(w, http.StatusOK, []GlobalLeaderboardResponse{})
+		return
 	}
 
 	top10 := make([]GlobalLeaderboardResponse, 0, TopLeaderboardTeams)
@@ -362,27 +363,30 @@ func (h *Handler) GetGlobalLeaderboard(w http.ResponseWriter, r *http.Request) {
 }
 
 // fetchPolymarketTeams queries the Polymarket gamma-api for all World Cup winner markets
-// via /markets?active=true&limit=50 (matching the user's Python script approach).
-// Extracts team names and "Yes" probabilities, returns sorted descending by probability.
+// via /markets?active=true&limit=200. Extracts team names and "Yes" probabilities,
+// returns sorted descending by probability.
 func (h *Handler) fetchPolymarketTeams(ctx context.Context) ([]GlobalLeaderboardResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://gamma-api.polymarket.com/markets?active=true&limit=50", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://gamma-api.polymarket.com/markets?active=true&limit=200", nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
 
 	client := gammaHTTPClient()
-
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("calling polymarket api: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
 	var markets []struct {
-		Question      string `json:"question"`
-		OutcomePrices string `json:"outcomePrices"`
-		Event         string `json:"event"`
+		Question      string          `json:"question"`
+		OutcomePrices json.RawMessage `json:"outcomePrices"`
+		Event         string          `json:"event"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&markets); err != nil {
 		return nil, fmt.Errorf("decoding polymarket response: %w", err)
@@ -390,20 +394,31 @@ func (h *Handler) fetchPolymarketTeams(ctx context.Context) ([]GlobalLeaderboard
 
 	var results []GlobalLeaderboardResponse
 	for _, m := range markets {
-		// Skip non-World Cup markets (check both question text and event field)
+		// Only World Cup markets
 		if !strings.Contains(m.Question, "World Cup") && !strings.Contains(m.Event, "World Cup") {
 			continue
 		}
-		// Parse team name from "Will <Team> win the 2026 FIFA World Cup?"
 		team := parseWorldCupTeam(m.Question)
 		if team == "" {
 			continue
 		}
 
+		// Safely handle both double-encoded strings "[\"0.18\"]" AND native arrays ["0.18"]
 		var prices []string
-		if err := json.Unmarshal([]byte(m.OutcomePrices), &prices); err != nil || len(prices) == 0 {
+		raw := bytes.TrimSpace(m.OutcomePrices)
+		if len(raw) > 0 && raw[0] == '"' {
+			var s string
+			if err := json.Unmarshal(raw, &s); err == nil {
+				_ = json.Unmarshal([]byte(s), &prices)
+			}
+		} else {
+			_ = json.Unmarshal(raw, &prices)
+		}
+
+		if len(prices) == 0 {
 			continue
 		}
+
 		yesPrice, err := strconv.ParseFloat(prices[0], 64)
 		if err != nil {
 			continue
@@ -415,7 +430,11 @@ func (h *Handler) fetchPolymarketTeams(ctx context.Context) ([]GlobalLeaderboard
 		})
 	}
 
-	// Sort descending by probability
+	if len(results) == 0 {
+		return nil, errors.New("successfully hit API but parsed 0 valid soccer nations")
+	}
+
+	// Sort descending by win probability
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Probability > results[j].Probability
 	})
@@ -801,23 +820,6 @@ func parsePercent(s string) int {
 	}
 	v, _ := strconv.Atoi(s)
 	return v
-}
-
-// fallbackLeaderboard returns last-known intact Polymarket data
-// used when gamma-api is unreachable (IPv6-only, occasional DNS flake).
-func fallbackLeaderboard() []GlobalLeaderboardResponse {
-	return []GlobalLeaderboardResponse{
-		{Team: "France", Probability: 23},
-		{Team: "Argentina", Probability: 21},
-		{Team: "England", Probability: 10},
-		{Team: "Spain", Probability: 10},
-		{Team: "Portugal", Probability: 5},
-		{Team: "Germany", Probability: 5},
-		{Team: "Brazil", Probability: 4},
-		{Team: "Netherlands", Probability: 4},
-		{Team: "Italy", Probability: 3},
-		{Team: "Belgium", Probability: 3},
-	}
 }
 
 // writeJSON sends a JSON response with the given status code.

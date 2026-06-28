@@ -157,5 +157,17 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 ### 9.8.3 Frontend: 3-Way Display
 - [x] `UpcomingMatch` TS type: `percentHome / percentDraw / percentAway` (integers)
 - [x] 3 pills per match row: Home %, Draw %, Away %
-- [x] Source label per match (Polymarket (derived) or Equal odds note)
+- [x] Source label per match row
 - [x] Empty state: No upcoming match predictions available
+
+## Phase 9.9: Leaderboard — no fallback, use markets endpoint with robust parsing
+
+### 9.9.1 Remove fallbackLeaderboard()
+- [x] Delete `fallbackLeaderboard()` — no hardcoded leaderboard
+- [x] `GetGlobalLeaderboard` returns `[]` on error instead of fallback
+
+### 9.9.2 Robust Polymarket API query
+- [x] `fetchPolymarketTeams()` uses `/markets?active=true&limit=200` (catches all 32+ WC markets)
+- [x] `json.RawMessage` + double-encoded string handling for `outcomePrices`
+- [x] `bytes` + `errors` imports added
+
