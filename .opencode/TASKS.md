@@ -107,3 +107,26 @@ Generated from `.opencode/PLAN.md` — Phases 7 & 8.
 - [ ] Redis persists cache across container restarts
 - [ ] PulseDashboard renders with live data
 - [ ] Go 6/6 + Playwright 22/22 pass
+
+## Phase 9.6: Fix Match Oracle — top 10 matches with dates + DNS resilience
+
+### 9.6.1 Docker DNS Fix
+- [x] Add `extra_hosts` for gamma-api.polymarket.com with fallback Cloudflare IPs
+- [x] Custom Go dialer `gammaHTTPClient()` — tries system DNS first, falls back to hardcoded IP
+
+### 9.6.2 Next Match Oracle → Top 10 with Dates
+- [x] Rewrite `fetchUpcomingMatches()` — queries `/events?active=true&closed=false&q=World%20Cup&limit=50`
+- [x] Filter market questions: must contain "vs" but NOT "winner"
+- [x] Sort by endDate ascending, return top 10 with match name, date, outcomes, odds
+- [x] Fallback: 10 hardcoded matches starting with "South Africa vs Canada — June 29"
+
+### 9.6.3 Leaderboard — Live API Fix
+- [x] Updated endpoint to `/markets?active=true&limit=50`
+- [x] Added event field filter for "World Cup"
+- [x] DNS-resilient client now serves live Polymarket data
+
+### 9.6.4 Frontend — Top 10 List with Dates
+- [x] New `UpcomingMatch` TS type with id, match, endDate, outcomes, odds
+- [x] Wizard list view: ranked rows with match name, date, odds pills
+- [x] Scrollable container (max 520px) for 10 matches
+- [x] Responsive sizing: left col 7, right col 5 (same grid as before)
