@@ -423,3 +423,34 @@ func TestGetStandings_ReturnsValidJSON(t *testing.T) {
 		t.Errorf("expected application/json, got %s", contentType)
 	}
 }
+
+func TestGetGoldenBoot_ReturnsValidJSON(t *testing.T) {
+	mockYear := &mockYearService{}
+	mockMatch := &mockMatchService{}
+	h := New(mockYear, mockMatch, nil, slog.Default())
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest("GET", "/api/v1/predictions/golden-boot", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("expected application/json, got %s", contentType)
+	}
+
+	var entries []GoldenBootEntry
+	if err := json.NewDecoder(rec.Body).Decode(&entries); err != nil {
+		t.Fatalf("expected valid JSON array, got error: %v", err)
+	}
+	if entries == nil {
+		t.Fatal("expected empty JSON array ([]), not nil")
+	}
+	t.Logf("got %d golden boot entries (unexpected for test env, but valid JSON)", len(entries))
+}

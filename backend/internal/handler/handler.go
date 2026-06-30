@@ -39,12 +39,19 @@ type MatchService interface {
 
 // Handler groups all HTTP handlers and their dependencies.
 type Handler struct {
-	yearSvc         YearService
-	matchSvc        MatchService
-	rdb             *redis.Client
-	logger          *slog.Logger
-	gamesCache      *gamesCacheData
-	standingsCache  *standingsCacheData
+	yearSvc          YearService
+	matchSvc         MatchService
+	rdb              *redis.Client
+	logger           *slog.Logger
+	gamesCache       *gamesCacheData
+	standingsCache   *standingsCacheData
+	goldenBootCache  *goldenBootCacheData
+}
+
+// GoldenBootEntry represents a player's predicted probability to win the Golden Boot.
+type GoldenBootEntry struct {
+	Player      string `json:"player"`
+	Probability int    `json:"probability"`
 }
 
 // gamesCacheData holds a TTL-protected in-memory cache for the games list
@@ -60,6 +67,14 @@ type gamesCacheData struct {
 type standingsCacheData struct {
 	mu      sync.Mutex
 	data    []GroupStanding
+	expires time.Time
+	ttl     time.Duration
+}
+
+// goldenBootCacheData holds a TTL-protected in-memory cache for the Golden Boot predictions.
+type goldenBootCacheData struct {
+	mu      sync.Mutex
+	data    []GoldenBootEntry
 	expires time.Time
 	ttl     time.Duration
 }
@@ -80,6 +95,9 @@ func New(yearSvc YearService, matchSvc MatchService, rdb *redis.Client, logger *
 		standingsCache: &standingsCacheData{
 			ttl: 60 * time.Second,
 		},
+		goldenBootCache: &goldenBootCacheData{
+			ttl: 60 * time.Second,
+		},
 	}
 }
 
@@ -96,6 +114,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/predictions/match/next", h.GetNextMatchOracle)
 	mux.HandleFunc("GET /api/v1/games", h.GetGamesList)
 	mux.HandleFunc("GET /api/v1/standings", h.GetStandings)
+	mux.HandleFunc("GET /api/v1/predictions/golden-boot", h.GetGoldenBoot)
 }
 
 // Health responds with service status.
@@ -1125,4 +1144,132 @@ func (h *Handler) fetchStandings() ([]GroupStanding, error) {
 		return []GroupStanding{}, nil
 	}
 	return groups, nil
+}
+
+// goldenBootPlayerRegex extracts the player name from a question like
+// "Will Lionel Messi be the top goalscorer in the 2026 FIFA World Cup?"
+var goldenBootPlayerRegex = regexp.MustCompile(`^Will (.+) be the top goalscorer`)
+
+// GetGoldenBoot returns the top-10 Golden Boot predictions from Polymarket.
+// Uses an in-memory cache with 60s TTL. Returns [] on error — no fallback.
+func (h *Handler) GetGoldenBoot(w http.ResponseWriter, r *http.Request) {
+	// Check in-memory cache first
+	if h.goldenBootCache != nil {
+		h.goldenBootCache.mu.Lock()
+		if !h.goldenBootCache.expires.IsZero() && time.Now().Before(h.goldenBootCache.expires) {
+			data := h.goldenBootCache.data
+			h.goldenBootCache.mu.Unlock()
+			writeJSON(w, http.StatusOK, data)
+			return
+		}
+		h.goldenBootCache.mu.Unlock()
+	}
+
+	// Cache miss — fetch fresh data
+	entries, err := h.fetchGoldenBoot(r.Context())
+	if err != nil {
+		h.logger.Warn("failed to fetch Golden Boot predictions (no fallback)", "error", err)
+		writeJSON(w, http.StatusOK, []GoldenBootEntry{})
+		return
+	}
+
+	// Cache the result
+	if h.goldenBootCache != nil {
+		h.goldenBootCache.mu.Lock()
+		h.goldenBootCache.data = entries
+		h.goldenBootCache.expires = time.Now().Add(h.goldenBootCache.ttl)
+		h.goldenBootCache.mu.Unlock()
+	}
+
+	writeJSON(w, http.StatusOK, entries)
+}
+
+// fetchGoldenBoot queries the Polymarket gamma-api for the Golden Boot event
+// and returns the top 10 players sorted by predicted probability.
+func (h *Handler) fetchGoldenBoot(ctx context.Context) ([]GoldenBootEntry, error) {
+	endpoint := "https://gamma-api.polymarket.com/events?slug=world-cup-golden-boot-winner&closed=false"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := gammaHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling gamma-api: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	type gammaMarket struct {
+		Question      string          `json:"question"`
+		OutcomePrices json.RawMessage `json:"outcomePrices"`
+	}
+
+	type gammaEvent struct {
+		Title   string        `json:"title"`
+		Markets []gammaMarket `json:"markets"`
+	}
+
+	var events []gammaEvent
+	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
+		return nil, fmt.Errorf("decoding gamma response: %w", err)
+	}
+
+	// Find the Golden Boot event (there should be one)
+	var markets []gammaMarket
+	for _, e := range events {
+		if strings.Contains(strings.ToLower(e.Title), "golden boot") {
+			markets = e.Markets
+			break
+		}
+	}
+
+	if len(markets) == 0 {
+		return nil, errors.New("golden boot event not found in response")
+	}
+
+	var results []GoldenBootEntry
+	for _, m := range markets {
+		matches := goldenBootPlayerRegex.FindStringSubmatch(m.Question)
+		if len(matches) < 2 {
+			continue
+		}
+		playerName := strings.TrimSpace(matches[1])
+
+		prices := parseRawJsonSlice(m.OutcomePrices)
+		if len(prices) == 0 {
+			continue
+		}
+
+		prob := priceToPercent(prices[0])
+		if prob == 0 {
+			continue
+		}
+
+		results = append(results, GoldenBootEntry{
+			Player:      playerName,
+			Probability: prob,
+		})
+	}
+
+	if len(results) == 0 {
+		return nil, errors.New("successfully hit API but parsed 0 valid player markets")
+	}
+
+	// Sort descending by probability
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Probability > results[j].Probability
+	})
+
+	// Take top 10
+	if len(results) > 10 {
+		results = results[:10]
+	}
+
+	return results, nil
 }

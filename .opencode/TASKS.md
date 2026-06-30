@@ -198,17 +198,17 @@ Add a new dashboard page showing the **top 10 players** most predicted to win th
 ### Tasks
 
 #### 14.1 Backend: Golden Boot endpoint (`GET /api/v1/predictions/golden-boot`)
-- [ ] New handler `GetGoldenBoot(w, r)` at `GET /api/v1/predictions/golden-boot`
-- [ ] Fetch `https://gamma-api.polymarket.com/events?slug=world-cup-golden-boot-winner&closed=false`
-- [ ] Parse `markets` array; for each market:
+- [x] New handler `GetGoldenBoot(w, r)` at `GET /api/v1/predictions/golden-boot`
+- [x] Fetch `https://gamma-api.polymarket.com/events?slug=world-cup-golden-boot-winner&closed=false`
+- [x] Parse `markets` array; for each market:
   - Extract player name from question text (`"Will Lionel Messi be the top goalscorer..."`)
   - Extract Yes-probability from `outcomePrices[0]`
   - Normalize question parsing to handle varying question formats
-- [ ] Sort descending by probability, take top 10
-- [ ] Use existing `priceToPercent` helper for float→int conversion
-- [ ] In-memory cache with 60s TTL (same pattern as games cache)
-- [ ] Return JSON: `[{ "player": "Lionel Messi", "probability": 52 }, ...]`
-- [ ] Returns `[]` on error — no fallback or derivation
+- [x] Sort descending by probability, take top 10
+- [x] Use existing `priceToPercent` helper for float→int conversion
+- [x] In-memory cache with 60s TTL (same pattern as games cache)
+- [x] Return JSON: `[{ "player": "Lionel Messi", "probability": 52 }, ...]`
+- [x] Returns `[]` on error — no fallback or derivation
 
 #### 14.2 Frontend: Golden Boot page
 - [ ] Create `src/pages/GoldenBoot.tsx`
