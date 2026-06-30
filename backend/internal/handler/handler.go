@@ -974,34 +974,6 @@ type GroupStanding struct {
 	Teams []TeamStanding `json:"teams"`
 }
 
-// espnStandingsResponse mirrors the ESPN API response structure.
-type espnStandingsResponse struct {
-	Children []espnChild `json:"children"`
-}
-
-type espnChild struct {
-	Name       string           `json:"name"`
-	Standings espnStandingsData `json:"standings"`
-}
-
-type espnStandingsData struct {
-	Entries []espnEntry `json:"entries"`
-}
-
-type espnEntry struct {
-	Team  espnTeam   `json:"team"`
-	Stats []espnStat `json:"stats"`
-}
-
-type espnTeam struct {
-	Name string `json:"name"`
-}
-
-type espnStat struct {
-	Name  string          `json:"name"`
-	Value json.RawMessage `json:"value"`
-}
-
 // GetStandings returns the current World Cup group standings.
 func (h *Handler) GetStandings(w http.ResponseWriter, r *http.Request) {
 	h.standingsCache.mu.Lock()
@@ -1153,17 +1125,4 @@ func (h *Handler) fetchStandings() ([]GroupStanding, error) {
 		return []GroupStanding{}, nil
 	}
 	return groups, nil
-}
-
-// parseStat unmarshals a json.RawMessage stat value into an int.
-func parseStat(s *espnStat, out *int) {
-	var str string
-	if err := json.Unmarshal(s.Value, &str); err == nil {
-		*out, _ = strconv.Atoi(str)
-		return
-	}
-	var num int
-	if err := json.Unmarshal(s.Value, &num); err == nil {
-		*out = num
-	}
 }
