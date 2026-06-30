@@ -136,4 +136,52 @@ Add a `GET /api/v1/games` backend endpoint that queries Polymarket's Gamma API f
 
 ---
 
-## Phase 14: TBD
+## Phase 14: Stats & Standings — Group Tables with Live Results
+
+### Overview
+Add a `GET /api/v1/standings` backend endpoint that fetches live World Cup 2026 group standings from the ESPN public API. Add a frontend Standings page rendering all 12 group tables with team stats (P, W, D, L, GF, GA, GD, PTS).
+
+### Tasks
+
+#### 14.1 Backend: Standings endpoint + ESPN API integration
+- [x] New handler `GetStandings(w, r)` at `GET /api/v1/standings`
+- [x] Fetch `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.worldcup/standings`
+- [x] Parse `children → standings → entries → stats` into `GroupStanding`/`TeamStanding` types
+- [x] Handle `json.RawMessage` stat values (string or number) via `parseStat()`
+- [x] In-memory cache with 60s TTL (same pattern as games cache)
+- [x] Return JSON array: `[{ group, teams: [{ teamName, played, wins, draws, losses, goalsFor, goalsAgainst, goalDiff, points }] }]`
+
+#### 14.2 Backend: Route + test
+- [x] Register `GET /api/v1/standings` route in `RegisterRoutes`
+- [x] Add unit test `TestGetStandings_ReturnsValidJSON`
+- [x] `go test ./...` passes (45/45)
+
+#### 14.3 Frontend: Standings page component
+- [x] Create `src/pages/Standings.tsx` — fetches `/api/v1/standings`, renders group tables
+- [x] Group grid layout (2 columns on desktop, 1 on mobile)
+- [x] Table columns: #, Team (with flag), P, W, D, L, GF, GA, GD, PTS
+- [x] Top 2 teams highlighted with emerald accent (qualification spots)
+- [x] Loading skeleton + error state
+- [x] Flags from flagsapi.com
+- [x] Register `/standings` route in `App.tsx`
+- [x] Add "Standings" nav item in `Layout.tsx`
+
+#### 14.4 Frontend: Playwright e2e test
+- [x] Create `e2e/standings.spec.ts` — page load + nav click
+- [x] Handles both success (data renders) and error (ESPN unreachable in CI) states
+- [x] `npx playwright test` passes (26/26)
+
+#### 14.5 Docker build + integration
+- [x] `docker compose build frontend && docker compose up -d frontend`
+- [x] Playwright tests against Docker stack pass
+
+---
+
+## Success Criteria
+
+- [x] `GET /api/v1/standings` returns 200 with 12 group standings
+- [x] Each team has: teamName, played, wins, draws, losses, goalsFor, goalsAgainst, goalDiff, points
+- [x] Standings frontend page renders with group tables and flags
+- [x] Go tests 45/45 pass
+- [x] Playwright tests 26/26 pass
+- [x] All Docker containers build and serve correctly
