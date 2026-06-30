@@ -10,9 +10,11 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -41,6 +43,16 @@ type Handler struct {
 	rdb            *redis.Client
 	apiFootballKey string
 	logger         *slog.Logger
+	gamesCache     *gamesCacheData
+}
+
+// gamesCacheData holds a TTL-protected in-memory cache for the games list
+// so we don't hammer gamma-api with 15+ requests on every page load.
+type gamesCacheData struct {
+	mu      sync.Mutex
+	data    []GameResponse
+	expires time.Time
+	ttl     time.Duration
 }
 
 // New creates a new Handler with the given services, Redis client, API key, and logger.
@@ -48,7 +60,16 @@ func New(yearSvc YearService, matchSvc MatchService, rdb *redis.Client, apiFootb
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Handler{yearSvc: yearSvc, matchSvc: matchSvc, rdb: rdb, apiFootballKey: apiFootballKey, logger: logger}
+	return &Handler{
+		yearSvc:        yearSvc,
+		matchSvc:       matchSvc,
+		rdb:            rdb,
+		apiFootballKey: apiFootballKey,
+		logger:         logger,
+		gamesCache: &gamesCacheData{
+			ttl: 30 * time.Second,
+		},
+	}
 }
 
 // RegisterRoutes registers all API routes on the given mux.
@@ -63,6 +84,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/predictions/global", h.GetGlobalLeaderboard)
 	mux.HandleFunc("GET /api/v1/predictions/match/next", h.GetNextMatchOracle)
 	mux.HandleFunc("GET /api/v1/predictions/match/{fixture_id}", h.GetMatchOracle)
+	mux.HandleFunc("GET /api/v1/games", h.GetGamesList)
 }
 
 // Health responds with service status.
@@ -719,6 +741,261 @@ func (h *Handler) fetchMatchPrediction(ctx context.Context, fixtureID int) (*Mat
 	}, nil
 }
 
+// --- Games List (Gamma API) ---
+
+// GameResponse is the full response item for a single World Cup match.
+type GameResponse struct {
+	Slug        string  `json:"slug"`
+	Team1       string  `json:"team1"`
+	Team2       string  `json:"team2"`
+	Date        string  `json:"date"`
+	PercentHome int     `json:"percentHome"`
+	PercentDraw int     `json:"percentDraw"`
+	PercentAway int     `json:"percentAway"`
+	Volume      float64 `json:"volume"`
+	Source      string  `json:"source"`
+}
+
+// slugTeamRegexp parses team codes from slug: fifwc-{teamA}-{teamB}-{YYYY-MM-DD}
+var slugTeamRegexp = regexp.MustCompile(`^fifwc-([a-z]+)-([a-z]+)-\d{4}-\d{2}-\d{2}$`)
+
+// isoCodeToName maps Gamma 3-letter country codes to display names.
+var isoCodeToName = map[string]string{
+	"rsa": "South Africa", "can": "Canada", "bra": "Brazil", "jpn": "Japan",
+	"ger": "Germany", "par": "Paraguay", "nld": "Netherlands", "mar": "Morocco",
+	"civ": "Côte d'Ivoire", "nor": "Norway", "fra": "France", "swe": "Sweden",
+	"mex": "Mexico", "ecu": "Ecuador", "eng": "England", "cdr": "DR Congo",
+	"bel": "Belgium", "sen": "Senegal", "usa": "USA", "bih": "Bosnia and Herzegovina",
+	"esp": "Spain", "aut": "Austria", "prt": "Portugal", "hrv": "Croatia",
+	"che": "Switzerland", "alg": "Algeria", "aus": "Australia", "egy": "Egypt",
+	"arg": "Argentina", "cvi": "Cabo Verde", "col": "Colombia", "gha": "Ghana",
+}
+
+// GetGamesList returns all available World Cup 2026 matches with live Polymarket odds.
+// Uses an in-memory cache with 30s TTL to avoid excessive Gamma API calls.
+func (h *Handler) GetGamesList(w http.ResponseWriter, r *http.Request) {
+	// Check in-memory cache first
+	if h.gamesCache != nil {
+		h.gamesCache.mu.Lock()
+		if !h.gamesCache.expires.IsZero() && time.Now().Before(h.gamesCache.expires) {
+			data := h.gamesCache.data
+			h.gamesCache.mu.Unlock()
+			writeJSON(w, http.StatusOK, data)
+			return
+		}
+		h.gamesCache.mu.Unlock()
+	}
+
+	// Cache miss — fetch fresh data
+	slugs, err := h.fetchGammaMatchSlugs(r.Context())
+	if err != nil {
+		h.logger.Warn("failed to fetch Gamma match slugs (no fallback)", "error", err)
+		writeJSON(w, http.StatusOK, []GameResponse{})
+		return
+	}
+
+	if len(slugs) == 0 {
+		writeJSON(w, http.StatusOK, []GameResponse{})
+		return
+	}
+
+	// Fetch odds for each slug concurrently
+	type slugResult struct {
+		slug string
+		odds *GameResponse
+	}
+	ch := make(chan slugResult, len(slugs))
+	ctx := r.Context()
+
+	for _, slug := range slugs {
+		s := slug
+		go func() {
+			odds, err := h.fetchGammaGame(ctx, s)
+			if err != nil {
+				h.logger.Warn("failed to fetch Gamma game odds", "slug", s, "error", err)
+				ch <- slugResult{slug: s, odds: nil}
+				return
+			}
+			ch <- slugResult{slug: s, odds: odds}
+		}()
+	}
+
+	results := make([]GameResponse, 0, len(slugs))
+	for i := 0; i < len(slugs); i++ {
+		res := <-ch
+		if res.odds != nil {
+			results = append(results, *res.odds)
+		}
+	}
+
+	// Sort chronologically by date
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Date < results[j].Date
+	})
+
+	// Cache the result
+	if h.gamesCache != nil {
+		h.gamesCache.mu.Lock()
+		h.gamesCache.data = results
+		h.gamesCache.expires = time.Now().Add(h.gamesCache.ttl)
+		h.gamesCache.mu.Unlock()
+	}
+
+	writeJSON(w, http.StatusOK, results)
+}
+
+// fetchGammaMatchSlugs queries events/keyset for all root WC 2026 match slugs.
+// Filters for events with no parentEventId (root match events, not props).
+func (h *Handler) fetchGammaMatchSlugs(ctx context.Context) ([]string, error) {
+	endpoint := "https://gamma-api.polymarket.com/events/keyset?closed=false&limit=100&series_id=11433"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating keyset request: %w", err)
+	}
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := gammaHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling gamma-api keyset: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gamma-api keyset status: %d", resp.StatusCode)
+	}
+
+	var keysetResp struct {
+		Events []struct {
+			Slug          string `json:"slug"`
+			ParentEventID *int   `json:"parentEventId"`
+		} `json:"events"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&keysetResp); err != nil {
+		return nil, fmt.Errorf("decoding keyset response: %w", err)
+	}
+
+	// Collect root-level match slugs (no parentEventId)
+	seen := make(map[string]bool)
+	var slugs []string
+	for _, e := range keysetResp.Events {
+		if e.ParentEventID == nil && !seen[e.Slug] && strings.Contains(e.Slug, "fifwc-") && !strings.Contains(e.Slug, "-player-props") {
+			seen[e.Slug] = true
+			slugs = append(slugs, e.Slug)
+		}
+	}
+
+	if len(slugs) == 0 {
+		return nil, errors.New("found 0 root match slugs in keyset response")
+	}
+
+	return slugs, nil
+}
+
+// fetchGammaGame fetches odds for a single match slug from events/slug/{slug}.
+// The response is a single event object (not array) containing binary markets
+// for each possible outcome (Team A win, Team B win, Draw).
+func (h *Handler) fetchGammaGame(ctx context.Context, slug string) (*GameResponse, error) {
+	endpoint := fmt.Sprintf("https://gamma-api.polymarket.com/events/slug/%s", slug)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating slug request: %w", err)
+	}
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := gammaHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling gamma-api slug: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gamma-api slug %q status: %d", slug, resp.StatusCode)
+	}
+
+	var event struct {
+		Title   string `json:"title"`
+		EndDate string `json:"endDate"`
+		Markets []struct {
+			Question      string          `json:"question"`
+			OutcomePrices json.RawMessage `json:"outcomePrices"`
+			Volume        json.RawMessage `json:"volume"`
+		} `json:"markets"`
+		Teams []struct {
+			Name      string `json:"name"`
+			Ordering  string `json:"ordering"` // "home" or "away"
+		} `json:"teams"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&event); err != nil {
+		return nil, fmt.Errorf("decoding slug response: %w", err)
+	}
+
+	// Parse team names from the teams array
+	var team1, team2 string
+	for _, t := range event.Teams {
+		if t.Ordering == "home" {
+			team1 = t.Name
+		} else if t.Ordering == "away" {
+			team2 = t.Name
+		}
+	}
+
+	// Parse date from endDate
+	date := event.EndDate
+	if parsed, err := time.Parse(time.RFC3339, date); err == nil {
+		date = parsed.Format("2006-01-02")
+	}
+
+	// Extract moneyline odds from the three binary markets
+	// Market format: "Will {Team} win...", "Will ... end in a draw"
+	var percentHome, percentDraw, percentAway int
+	var totalVol float64
+
+	for _, m := range event.Markets {
+		prices := parseRawJsonSlice(m.OutcomePrices)
+		if len(prices) < 2 {
+			continue
+		}
+		q := strings.ToLower(m.Question)
+
+		// Draw market
+		if strings.Contains(q, "end in a draw") {
+			percentDraw = priceToPercent(prices[0])
+			continue
+		}
+
+		// Win market — match by team name
+		if strings.Contains(q, "win") {
+			if team1 != "" && strings.Contains(q, strings.ToLower(team1)) {
+				percentHome = priceToPercent(prices[0])
+			} else if team2 != "" && strings.Contains(q, strings.ToLower(team2)) {
+				percentAway = priceToPercent(prices[0])
+			}
+		}
+	}
+
+	// Calculate volume as sum of all market volumes
+	for _, m := range event.Markets {
+		totalVol += parseVolume(m.Volume)
+	}
+
+	game := &GameResponse{
+		Slug:        slug,
+		Team1:       team1,
+		Team2:       team2,
+		Date:        date,
+		PercentHome: percentHome,
+		PercentDraw: percentDraw,
+		PercentAway: percentAway,
+		Volume:      totalVol,
+		Source:      "Polymarket Match Odds",
+	}
+
+	return game, nil
+}
+
 // parsePercent converts a percentage string like "47.5%" or "47%" to an integer.
 func parsePercent(s string) int {
 	s = strings.TrimSpace(s)
@@ -757,6 +1034,28 @@ func priceToPercent(priceStr string) int {
 		return 0
 	}
 	return int((val * 100) + 0.5)
+}
+
+// parseVolume parses a volume field that may be a float64 or string in JSON.
+func parseVolume(raw json.RawMessage) float64 {
+	if len(raw) == 0 {
+		return 0
+	}
+	// Try direct float64
+	var f float64
+	if err := json.Unmarshal(raw, &f); err == nil {
+		return f
+	}
+	// Try string
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return 0
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
+	}
+	return f
 }
 
 // writeJSON sends a JSON response with the given status code.

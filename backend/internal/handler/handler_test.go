@@ -370,3 +370,35 @@ func TestGetMatch_InvalidID(t *testing.T) {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
 }
+
+func TestGetGamesList_ReturnsEmptyJSONArrayOnError(t *testing.T) {
+	// When Gamma API is unreachable, GetGamesList must return an empty JSON array
+	// (not an error, not a null, not a crash).
+	h := setupTestHandler()
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/games", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("expected application/json, got %s", contentType)
+	}
+
+	var games []GameResponse
+	if err := json.NewDecoder(rec.Body).Decode(&games); err != nil {
+		t.Fatalf("expected valid JSON array, got error: %v", err)
+	}
+	if games == nil {
+		t.Fatal("expected empty JSON array ([]), not nil")
+	}
+	if len(games) != 0 {
+		t.Logf("got %d games (unexpected for test env, but valid JSON)", len(games))
+	}
+}

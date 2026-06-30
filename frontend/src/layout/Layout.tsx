@@ -10,6 +10,7 @@ const navItems = [
   { path: '/tournaments', label: 'Tournaments' },
   { path: '/goal-avalanche', label: 'Goal Avalanche' },
   { path: '/pulse', label: 'Pulse Oracle' },
+  { path: '/games', label: 'Games' },
 ];
 
 export default function Layout({ children }: LayoutProps) {

@@ -12,3 +12,15 @@ export interface UpcomingMatch {
   percentAway: number;
   source: string;
 }
+
+export interface GameItem {
+  slug: string;
+  team1: string;
+  team2: string;
+  date: string;
+  percentHome: number;
+  percentDraw: number;
+  percentAway: number;
+  volume: number;
+  source: string;
+}
