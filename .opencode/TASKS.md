@@ -139,16 +139,16 @@ Add a `GET /api/v1/games` backend endpoint that queries Polymarket's Gamma API f
 ## Phase 13.8: Stats & Standings — Group Tables with Live Results
 
 ### Overview
-Add a `GET /api/v1/standings` backend endpoint that fetches live World Cup 2026 group standings from the ESPN public API. Add a frontend Standings page rendering all 12 group tables with team stats (P, W, D, L, GF, GA, GD, PTS).
+Add a `GET /api/v1/standings` backend endpoint that fetches World Cup 2026 match results from the openfootball GitHub repo and computes live group standings. Add a frontend Standings page rendering all 12 group tables with team stats (P, W, D, L, GF, GA, GD, PTS).
 
 ### Tasks
 
 #### 13.8.1 Backend: Standings endpoint + ESPN API integration
 - [x] New handler `GetStandings(w, r)` at `GET /api/v1/standings`
-- [x] Fetch `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.worldcup/standings`
-- [x] Parse `children → standings → entries → stats` into `GroupStanding`/`TeamStanding` types
-- [x] Handle `json.RawMessage` stat values (string or number) via `parseStat()`
-- [x] In-memory cache with 60s TTL (same pattern as games cache)
+- [x] Fetch `https://raw.githubusercontent.com/openfootball/world-cup.json/master/2026/worldcup.json`
+- [x] Compute W/D/L/GF/GA/GD/PTS from actual match scores via openfootball data
+- [x] Sort by points, then goal diff, then goals for
+- [x] In-memory cache with 60s TTL
 - [x] Return JSON array: `[{ group, teams: [{ teamName, played, wins, draws, losses, goalsFor, goalsAgainst, goalDiff, points }] }]`
 
 #### 13.8.2 Backend: Route + test
