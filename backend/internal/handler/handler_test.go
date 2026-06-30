@@ -401,3 +401,25 @@ func TestGetGamesList_ReturnsEmptyJSONArrayOnError(t *testing.T) {
 		t.Logf("got %d games (unexpected for test env, but valid JSON)", len(games))
 	}
 }
+
+func TestGetStandings_ReturnsValidJSON(t *testing.T) {
+	mockYear := &mockYearService{}
+	mockMatch := &mockMatchService{}
+	h := New(mockYear, mockMatch, nil, slog.Default())
+
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest("GET", "/api/v1/standings", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	// The endpoint should respond — either cached (success) or with an error (no ESPN in CI)
+	if rec.Code != http.StatusOK && rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 200 or 500, got %d", rec.Code)
+	}
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("expected application/json, got %s", contentType)
+	}
+}

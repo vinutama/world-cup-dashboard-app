@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -950,4 +951,153 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 // writeError sends a JSON error response.
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+// --- Standings (ESPN API) ---
+
+// TeamStanding represents a single team's row in a group standings table.
+type TeamStanding struct {
+	TeamName     string `json:"teamName"`
+	Played       int    `json:"played"`
+	Wins         int    `json:"wins"`
+	Draws        int    `json:"draws"`
+	Losses       int    `json:"losses"`
+	GoalsFor     int    `json:"goalsFor"`
+	GoalsAgainst int    `json:"goalsAgainst"`
+	GoalDiff     int    `json:"goalDiff"`
+	Points       int    `json:"points"`
+}
+
+// GroupStanding represents one group with its teams sorted by points.
+type GroupStanding struct {
+	Group string         `json:"group"`
+	Teams []TeamStanding `json:"teams"`
+}
+
+// espnStandingsResponse mirrors the ESPN API response structure.
+type espnStandingsResponse struct {
+	Children []espnChild `json:"children"`
+}
+
+type espnChild struct {
+	Name       string           `json:"name"`
+	Standings espnStandingsData `json:"standings"`
+}
+
+type espnStandingsData struct {
+	Entries []espnEntry `json:"entries"`
+}
+
+type espnEntry struct {
+	Team  espnTeam   `json:"team"`
+	Stats []espnStat `json:"stats"`
+}
+
+type espnTeam struct {
+	Name string `json:"name"`
+}
+
+type espnStat struct {
+	Name  string          `json:"name"`
+	Value json.RawMessage `json:"value"`
+}
+
+// GetStandings returns the current World Cup group standings.
+func (h *Handler) GetStandings(w http.ResponseWriter, r *http.Request) {
+	h.standingsCache.mu.Lock()
+	if time.Now().Before(h.standingsCache.expires) {
+		data := h.standingsCache.data
+		h.standingsCache.mu.Unlock()
+		writeJSON(w, http.StatusOK, data)
+		return
+	}
+	h.standingsCache.mu.Unlock()
+
+	standings, err := h.fetchStandings()
+	if err != nil {
+		h.logger.Error("failed to fetch standings", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to fetch standings")
+		return
+	}
+
+	h.standingsCache.mu.Lock()
+	h.standingsCache.data = standings
+	h.standingsCache.expires = time.Now().Add(h.standingsCache.ttl)
+	h.standingsCache.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, standings)
+}
+
+// fetchStandings fetches and parses group standings from the ESPN API.
+func (h *Handler) fetchStandings() ([]GroupStanding, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.worldcup/standings")
+	if err != nil {
+		return nil, fmt.Errorf("espn request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("espn read: %w", err)
+	}
+
+	var espnResp espnStandingsResponse
+	if err := json.Unmarshal(body, &espnResp); err != nil {
+		return nil, fmt.Errorf("espn parse: %w", err)
+	}
+
+	var groups []GroupStanding
+	for _, child := range espnResp.Children {
+		group := GroupStanding{Group: child.Name}
+		for _, entry := range child.Standings.Entries {
+			team := TeamStanding{TeamName: entry.Team.Name}
+			for _, stat := range entry.Stats {
+				var val int
+				switch stat.Name {
+				case "gamesPlayed":
+					parseStat(&stat, &val)
+					team.Played = val
+				case "wins":
+					parseStat(&stat, &val)
+					team.Wins = val
+				case "ties":
+					parseStat(&stat, &val)
+					team.Draws = val
+				case "losses":
+					parseStat(&stat, &val)
+					team.Losses = val
+				case "points":
+					parseStat(&stat, &val)
+					team.Points = val
+				case "goalsFor":
+					parseStat(&stat, &val)
+					team.GoalsFor = val
+				case "goalsAgainst":
+					parseStat(&stat, &val)
+					team.GoalsAgainst = val
+				case "goalDifferential":
+					parseStat(&stat, &val)
+					team.GoalDiff = val
+				}
+			}
+			group.Teams = append(group.Teams, team)
+		}
+		groups = append(groups, group)
+	}
+
+	return groups, nil
+}
+
+// parseStat unmarshals a json.RawMessage stat value into an int.
+func parseStat(s *espnStat, out *int) {
+	var str string
+	if err := json.Unmarshal(s.Value, &str); err == nil {
+		*out, _ = strconv.Atoi(str)
+		return
+	}
+	var num int
+	if err := json.Unmarshal(s.Value, &num); err == nil {
+		*out = num
+	}
 }
