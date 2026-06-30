@@ -38,12 +38,12 @@ type MatchService interface {
 
 // Handler groups all HTTP handlers and their dependencies.
 type Handler struct {
-	yearSvc        YearService
-	matchSvc       MatchService
-	rdb            *redis.Client
-	apiFootballKey string
-	logger         *slog.Logger
-	gamesCache     *gamesCacheData
+	yearSvc         YearService
+	matchSvc        MatchService
+	rdb             *redis.Client
+	logger          *slog.Logger
+	gamesCache      *gamesCacheData
+	standingsCache  *standingsCacheData
 }
 
 // gamesCacheData holds a TTL-protected in-memory cache for the games list
@@ -55,19 +55,29 @@ type gamesCacheData struct {
 	ttl     time.Duration
 }
 
-// New creates a new Handler with the given services, Redis client, API key, and logger.
-func New(yearSvc YearService, matchSvc MatchService, rdb *redis.Client, apiFootballKey string, logger *slog.Logger) *Handler {
+// standingsCacheData holds a TTL-protected in-memory cache for the standings.
+type standingsCacheData struct {
+	mu      sync.Mutex
+	data    []GroupStanding
+	expires time.Time
+	ttl     time.Duration
+}
+
+// New creates a new Handler with the given services, Redis client, and logger.
+func New(yearSvc YearService, matchSvc MatchService, rdb *redis.Client, logger *slog.Logger) *Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Handler{
-		yearSvc:        yearSvc,
-		matchSvc:       matchSvc,
-		rdb:            rdb,
-		apiFootballKey: apiFootballKey,
-		logger:         logger,
+		yearSvc:  yearSvc,
+		matchSvc: matchSvc,
+		rdb:      rdb,
+		logger:   logger,
 		gamesCache: &gamesCacheData{
 			ttl: 30 * time.Second,
+		},
+		standingsCache: &standingsCacheData{
+			ttl: 60 * time.Second,
 		},
 	}
 }
@@ -83,8 +93,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/goal-avalanche", h.GetGoalAvalanche)
 	mux.HandleFunc("GET /api/v1/predictions/global", h.GetGlobalLeaderboard)
 	mux.HandleFunc("GET /api/v1/predictions/match/next", h.GetNextMatchOracle)
-	mux.HandleFunc("GET /api/v1/predictions/match/{fixture_id}", h.GetMatchOracle)
 	mux.HandleFunc("GET /api/v1/games", h.GetGamesList)
+	mux.HandleFunc("GET /api/v1/standings", h.GetStandings)
 }
 
 // Health responds with service status.
@@ -624,123 +634,6 @@ func gammaHTTPClient() *http.Client {
 	}
 }
 
-// MatchOracleResponse is the prediction advice for a specific fixture.
-type MatchOracleResponse struct {
-	FixtureID    int    `json:"fixtureId"`
-	Advice       string `json:"advice"`
-	PercentHome  int    `json:"percentHome"`
-	PercentDraw  int    `json:"percentDraw"`
-	PercentAway  int    `json:"percentAway"`
-}
-
-// GetMatchOracle returns cached or fresh prediction data for a fixture.
-func (h *Handler) GetMatchOracle(w http.ResponseWriter, r *http.Request) {
-	fixtureIDStr := r.PathValue("fixture_id")
-	if fixtureIDStr == "" {
-		writeError(w, http.StatusBadRequest, "missing fixture_id path parameter")
-		return
-	}
-	fixtureID, err := strconv.Atoi(fixtureIDStr)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "fixture_id must be a number")
-		return
-	}
-
-	ctx := r.Context()
-	cacheKey := fmt.Sprintf("match:oracle:%d", fixtureID)
-
-	// 1. Check Redis cache
-	if h.rdb != nil {
-		cached, err := h.rdb.Get(ctx, cacheKey).Result()
-		if err == nil {
-			var resp MatchOracleResponse
-			if json.Unmarshal([]byte(cached), &resp) == nil {
-				h.logger.Debug("match oracle cache hit", "fixture", fixtureID)
-				writeJSON(w, http.StatusOK, resp)
-				return
-			}
-		}
-	}
-
-	// 2. Cache miss — fetch from API-Football
-	result, err := h.fetchMatchPrediction(ctx, fixtureID)
-	if err != nil {
-		h.logger.Error("match oracle fetch failed", "fixture", fixtureID, "error", err)
-		writeError(w, http.StatusBadGateway, "failed to fetch match prediction")
-		return
-	}
-
-	// 3. Store in Redis (6h TTL)
-	if h.rdb != nil {
-		payload, _ := json.Marshal(result)
-		if err := h.rdb.Set(ctx, cacheKey, string(payload), 6*time.Hour).Err(); err != nil {
-			h.logger.Error("match oracle cache write failed", "fixture", fixtureID, "error", err)
-		}
-	}
-
-	writeJSON(w, http.StatusOK, result)
-}
-
-// apiFootballPredictionResponse is the raw response from the API-Football /predictions endpoint.
-type apiFootballPredictionResponse struct {
-	Response []struct {
-		Predictions struct {
-			Advice  string `json:"advice"`
-			Percent struct {
-				Home string `json:"home"`
-				Draw string `json:"draw"`
-				Away string `json:"away"`
-			} `json:"percent"`
-		} `json:"predictions"`
-	} `json:"response"`
-}
-
-// fetchMatchPrediction calls the API-Football predictions endpoint.
-func (h *Handler) fetchMatchPrediction(ctx context.Context, fixtureID int) (*MatchOracleResponse, error) {
-	url := fmt.Sprintf("https://v3.football.api-sports.io/predictions?fixture=%d", fixtureID)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-	req.Header.Set("x-rapidapi-key", h.apiFootballKey)
-	req.Header.Set("x-rapidapi-host", "v3.football.api-sports.io")
-	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("calling api-football: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("api-football returned status %d", resp.StatusCode)
-	}
-
-	var raw apiFootballPredictionResponse
-	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-		return nil, fmt.Errorf("decoding api-football response: %w", err)
-	}
-
-	if len(raw.Response) == 0 {
-		return nil, fmt.Errorf("no prediction data for fixture %d", fixtureID)
-	}
-
-	p := raw.Response[0].Predictions
-
-	homePct := parsePercent(p.Percent.Home)
-	drawPct := parsePercent(p.Percent.Draw)
-	awayPct := parsePercent(p.Percent.Away)
-
-	return &MatchOracleResponse{
-		FixtureID:   fixtureID,
-		Advice:      p.Advice,
-		PercentHome: homePct,
-		PercentDraw: drawPct,
-		PercentAway: awayPct,
-	}, nil
-}
-
 // --- Games List (Gamma API) ---
 
 // GameResponse is the full response item for a single World Cup match.
@@ -994,17 +887,6 @@ func (h *Handler) fetchGammaGame(ctx context.Context, slug string) (*GameRespons
 	}
 
 	return game, nil
-}
-
-// parsePercent converts a percentage string like "47.5%" or "47%" to an integer.
-func parsePercent(s string) int {
-	s = strings.TrimSpace(s)
-	s = strings.TrimSuffix(s, "%")
-	if idx := strings.Index(s, "."); idx >= 0 {
-		s = s[:idx]
-	}
-	v, _ := strconv.Atoi(s)
-	return v
 }
 
 // parseRawJsonSlice safely handles double-encoded JSON arrays ("[\"A\",\"B\"]") or
