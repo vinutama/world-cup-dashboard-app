@@ -423,3 +423,56 @@ func TestGetStandings_ReturnsValidJSON(t *testing.T) {
 		t.Errorf("expected application/json, got %s", contentType)
 	}
 }
+
+func TestGetContinentPredictions_ReturnsEmptyJSONArrayOnError(t *testing.T) {
+	// When Gamma API is unreachable, GetContinentPredictions must return an empty JSON array.
+	h := setupTestHandler()
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/predictions/continent", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("expected application/json, got %s", contentType)
+	}
+
+	var predictions []ContinentPrediction
+	if err := json.NewDecoder(rec.Body).Decode(&predictions); err != nil {
+		t.Fatalf("expected valid JSON array, got error: %v", err)
+	}
+	if predictions == nil {
+		t.Fatal("expected empty JSON array ([]), not nil")
+	}
+}
+
+func TestParseContinentConfederation(t *testing.T) {
+	tests := []struct {
+		question string
+		want     string
+	}{
+		{"Will a UEFA team win the 2026 World Cup?", "UEFA"},
+		{"Will a CONMEBOL team win the 2026 World Cup?", "CONMEBOL"},
+		{"Will a CONCACAF team win the 2026 World Cup?", "CONCACAF"},
+		{"Will a CAF team win the 2026 World Cup?", "CAF"},
+		{"Will an OCF team win the 2026 World Cup?", "OCF"},
+		{"Will an AFC team win the 2026 World Cup?", "AFC"},
+		{"Will an another continent win the 2026 World Cup?", "another continent"},
+		{"", ""},
+		{"not a match", ""},
+		{"Will a TEAM win the 2026 World Cup?", "TEAM"},
+	}
+
+	for _, tt := range tests {
+		got := parseContinentConfederation(tt.question)
+		if got != tt.want {
+			t.Errorf("parseContinentConfederation(%q) = %q, want %q", tt.question, got, tt.want)
+		}
+	}
+}

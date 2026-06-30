@@ -45,6 +45,7 @@ type Handler struct {
 	logger          *slog.Logger
 	gamesCache      *gamesCacheData
 	standingsCache  *standingsCacheData
+	continentCache  *continentCacheData
 }
 
 // gamesCacheData holds a TTL-protected in-memory cache for the games list
@@ -60,6 +61,14 @@ type gamesCacheData struct {
 type standingsCacheData struct {
 	mu      sync.Mutex
 	data    []GroupStanding
+	expires time.Time
+	ttl     time.Duration
+}
+
+// continentCacheData holds a TTL-protected in-memory cache for continent predictions.
+type continentCacheData struct {
+	mu      sync.Mutex
+	data    []ContinentPrediction
 	expires time.Time
 	ttl     time.Duration
 }
@@ -80,6 +89,9 @@ func New(yearSvc YearService, matchSvc MatchService, rdb *redis.Client, logger *
 		standingsCache: &standingsCacheData{
 			ttl: 60 * time.Second,
 		},
+		continentCache: &continentCacheData{
+			ttl: 60 * time.Second,
+		},
 	}
 }
 
@@ -96,6 +108,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/predictions/match/next", h.GetNextMatchOracle)
 	mux.HandleFunc("GET /api/v1/games", h.GetGamesList)
 	mux.HandleFunc("GET /api/v1/standings", h.GetStandings)
+	mux.HandleFunc("GET /api/v1/predictions/continent", h.GetContinentPredictions)
 }
 
 // Health responds with service status.
@@ -939,6 +952,201 @@ func parseVolume(raw json.RawMessage) float64 {
 		return 0
 	}
 	return f
+}
+
+// --- Continent Predictions ---
+
+// ContinentPrediction represents a single continent's win probability.
+type ContinentPrediction struct {
+	Continent   string `json:"continent"`
+	Label       string `json:"label"`
+	Probability int    `json:"probability"`
+}
+
+// confedToContinent maps Polymarket confederation codes to display labels.
+var confedToContinent = map[string]struct {
+	Continent string
+	Label     string
+}{
+	"UEFA":     {Continent: "UEFA", Label: "Europe"},
+	"CONMEBOL": {Continent: "CONMEBOL", Label: "South America"},
+	"CONCACAF": {Continent: "CONCACAF", Label: "North America"},
+	"CAF":      {Continent: "CAF", Label: "Africa"},
+	"OCF":      {Continent: "OCF", Label: "Oceania"},
+	"AFC":      {Continent: "AFC", Label: "Asia"},
+}
+
+// GetContinentPredictions returns each continent's probability of winning
+// the World Cup, sourced from Polymarket's Gamma API.
+// Returns [] on error — no fallback.
+func (h *Handler) GetContinentPredictions(w http.ResponseWriter, r *http.Request) {
+	// Check in-memory cache first
+	if h.continentCache != nil {
+		h.continentCache.mu.Lock()
+		if !h.continentCache.expires.IsZero() && time.Now().Before(h.continentCache.expires) {
+			data := h.continentCache.data
+			h.continentCache.mu.Unlock()
+			writeJSON(w, http.StatusOK, data)
+			return
+		}
+		h.continentCache.mu.Unlock()
+	}
+
+	predictions, err := h.fetchContinentPredictions(r.Context())
+	if err != nil {
+		h.logger.Warn("failed to fetch continent predictions (no fallback)", "error", err)
+		writeJSON(w, http.StatusOK, []ContinentPrediction{})
+		return
+	}
+
+	// Cache the result
+	if h.continentCache != nil {
+		h.continentCache.mu.Lock()
+		h.continentCache.data = predictions
+		h.continentCache.expires = time.Now().Add(h.continentCache.ttl)
+		h.continentCache.mu.Unlock()
+	}
+
+	writeJSON(w, http.StatusOK, predictions)
+}
+
+// fetchContinentPredictions queries the Gamma API for continent win-probability markets.
+func (h *Handler) fetchContinentPredictions(ctx context.Context) ([]ContinentPrediction, error) {
+	endpoint := "https://gamma-api.polymarket.com/events?slug=which-continent-will-win-the-world-cup&closed=false"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating continent request: %w", err)
+	}
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := gammaHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling gamma-api for continent predictions: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gamma-api continent predictions status: %d", resp.StatusCode)
+	}
+
+	var events []struct {
+		ID      int `json:"id"`
+		Markets []struct {
+			Question      string          `json:"question"`
+			Outcomes      json.RawMessage `json:"outcomes"`
+			OutcomePrices json.RawMessage `json:"outcomePrices"`
+		} `json:"markets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
+		return nil, fmt.Errorf("decoding gamma-api continent response: %w", err)
+	}
+
+	if len(events) == 0 {
+		return nil, errors.New("gamma-api returned 0 events for continent slug")
+	}
+
+	event := events[0]
+	var predictions []ContinentPrediction
+
+	for _, market := range event.Markets {
+		// Skip markets without the expected binary outcomes
+		outcomes := parseRawJsonSlice(market.Outcomes)
+		if len(outcomes) < 2 || outcomes[0] != "Yes" {
+			continue
+		}
+
+		// Extract confederation code from the question
+		// e.g. "Will a UEFA team win the 2026 World Cup?" -> "UEFA"
+		confed := parseContinentConfederation(market.Question)
+		if confed == "" {
+			continue
+		}
+
+		// Skip "another continent"
+		if strings.ToLower(confed) == "another" {
+			continue
+		}
+
+		mapped, ok := confedToContinent[confed]
+		if !ok {
+			continue
+		}
+
+		prices := parseRawJsonSlice(market.OutcomePrices)
+		if len(prices) < 1 {
+			continue
+		}
+
+		prob := priceToPercent(prices[0])
+		if prob == 0 {
+			continue
+		}
+
+		predictions = append(predictions, ContinentPrediction{
+			Continent:   mapped.Continent,
+			Label:       mapped.Label,
+			Probability: prob,
+		})
+	}
+
+	if len(predictions) == 0 {
+		return nil, errors.New("parsed 0 valid continent predictions from gamma-api")
+	}
+
+	// Sort descending by probability
+	sort.Slice(predictions, func(i, j int) bool {
+		return predictions[i].Probability > predictions[j].Probability
+	})
+
+	return predictions, nil
+}
+
+// parseContinentConfederation extracts the confederation code from a Polymarket
+// question like "Will a UEFA team win the 2026 World Cup?" or "Will an AFC team win the 2026 World Cup?".
+func parseContinentConfederation(question string) string {
+	// Format with " team ": "Will a|an {confed} team win the 2026 World Cup?"
+	const prefixA = "Will a "
+	const prefixAn = "Will an "
+	const suffixTeam = " team win the 2026 World Cup?"
+	const suffixTeamFIFA = " team win the 2026 FIFA World Cup?"
+	// Format without " team ": "Will a|an {confed} win the 2026 World Cup?"
+	const suffixNoTeam = " win the 2026 World Cup?"
+	const suffixNoTeamFIFA = " win the 2026 FIFA World Cup?"
+
+	combos := []struct {
+		prefix string
+		suffix string
+	}{
+		{prefixA, suffixTeam},
+		{prefixAn, suffixTeam},
+		{prefixA, suffixTeamFIFA},
+		{prefixAn, suffixTeamFIFA},
+		{prefixA, suffixNoTeam},
+		{prefixAn, suffixNoTeam},
+		{prefixA, suffixNoTeamFIFA},
+		{prefixAn, suffixNoTeamFIFA},
+	}
+
+	for _, c := range combos {
+		if trimmed := tryParseContinent(question, c.prefix, c.suffix); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+// tryParseContinent checks if question matches prefix/suffix and returns the middle portion.
+func tryParseContinent(question, prefix, suffix string) string {
+	if len(question) < len(prefix)+len(suffix) {
+		return ""
+	}
+	if !strings.HasPrefix(question, prefix) || !strings.HasSuffix(question, suffix) {
+		return ""
+	}
+	raw := question[len(prefix) : len(question)-len(suffix)]
+	raw = strings.TrimSpace(raw)
+	return raw
 }
 
 // writeJSON sends a JSON response with the given status code.

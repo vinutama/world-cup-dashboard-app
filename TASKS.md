@@ -393,3 +393,28 @@ type TimelineEvent struct {
                               6.5 QA, Review & Documentation
 
 ```
+
+---
+
+## Phase 15: Polymarket Predictions (Continent & Future)
+
+| Phase | Endpoint | Status |
+|-------|----------|--------|
+| 15.1  | `GET /api/v1/predictions/continent` | 🟡 In Progress |
+
+### Task 15.1 — Continent Predictions Endpoint
+
+**Goal:** Query Polymarket's Gamma API for the "Which continent will win the World Cup?" event, parse the 7 markets, map confederation codes to continent names, and serve as a clean JSON endpoint with in-memory caching.
+
+- [x] Create `GetContinentPredictions` handler in `backend/internal/handler/handler.go`
+- [x] Register route: `GET /api/v1/predictions/continent`
+- [x] Fetch event from `https://gamma-api.polymarket.com/events?slug=which-continent-will-win-the-world-cup&closed=false`
+- [x] Parse 7 markets, each with outcomes `['Yes', 'No']` and `outcomePrices`
+- [x] Map confederation codes: UEFA→Europe, CONMEBOL→South America, CONCACAF→North America, CAF→Africa, OCF→Oceania, AFC→Asia
+- [x] Filter out "another continent" market
+- [x] Return JSON: `[{continent, label, probability}, ...]`
+- [x] Return `[]` on error — NO fallback data
+- [x] Use in-memory cache with 60s TTL (same pattern as `GetGamesList`)
+- [x] Write unit test `TestGetContinentPredictions` in `handler_test.go`
+- [x] Build passes cleanly (`go build ./...`)
+- [x] Tests pass (`go test ./...`)
