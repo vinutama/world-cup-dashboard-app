@@ -1028,64 +1028,130 @@ func (h *Handler) GetStandings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, standings)
 }
 
-// fetchStandings fetches and parses group standings from the ESPN API.
+// fetchStandings fetches match results from the openfootball GitHub repo
+// and computes group standings from actual match scores.
 func (h *Handler) fetchStandings() ([]GroupStanding, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.worldcup/standings")
+	resp, err := client.Get("https://raw.githubusercontent.com/openfootball/world-cup.json/master/2026/worldcup.json")
 	if err != nil {
-		return nil, fmt.Errorf("espn request: %w", err)
+		return nil, fmt.Errorf("openfootball request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("espn read: %w", err)
+		return nil, fmt.Errorf("openfootball read: %w", err)
 	}
 
-	var espnResp espnStandingsResponse
-	if err := json.Unmarshal(body, &espnResp); err != nil {
-		return nil, fmt.Errorf("espn parse: %w", err)
+	var data struct {
+		Name    string `json:"name"`
+		Matches []struct {
+			Team1 string          `json:"team1"`
+			Team2 string          `json:"team2"`
+			Score json.RawMessage `json:"score"`
+			Group string          `json:"group"`
+		} `json:"matches"`
+	}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, fmt.Errorf("openfootball parse: %w", err)
+	}
+
+	// group → team → stats
+	type teamStats struct {
+		played       int
+		wins, draws, losses int
+		goalsFor, goalsAgainst int
+		points       int
+	}
+	groupsMap := make(map[string]map[string]*teamStats)
+	groupOrder := []string{}
+
+	for _, m := range data.Matches {
+		if m.Group == "" {
+			continue
+		}
+		g := m.Group
+		if groupsMap[g] == nil {
+			groupsMap[g] = make(map[string]*teamStats)
+			groupOrder = append(groupOrder, g)
+		}
+		for _, name := range []string{m.Team1, m.Team2} {
+			if groupsMap[g][name] == nil {
+				groupsMap[g][name] = &teamStats{}
+			}
+		}
+
+		// Parse score
+		var score struct {
+			Ft []int `json:"ft"`
+		}
+		if err := json.Unmarshal(m.Score, &score); err != nil || len(score.Ft) < 2 {
+			continue // match not played yet or no score
+		}
+		g1, g2 := score.Ft[0], score.Ft[1]
+
+		t1 := groupsMap[g][m.Team1]
+		t2 := groupsMap[g][m.Team2]
+		t1.played++
+		t2.played++
+		t1.goalsFor += g1
+		t1.goalsAgainst += g2
+		t2.goalsFor += g2
+		t2.goalsAgainst += g1
+
+		switch {
+		case g1 > g2:
+			t1.wins++
+			t2.losses++
+			t1.points += 3
+		case g1 < g2:
+			t2.wins++
+			t1.losses++
+			t2.points += 3
+		default:
+			t1.draws++
+			t2.draws++
+			t1.points++
+			t2.points++
+		}
 	}
 
 	var groups []GroupStanding
-	for _, child := range espnResp.Children {
-		group := GroupStanding{Group: child.Name}
-		for _, entry := range child.Standings.Entries {
-			team := TeamStanding{TeamName: entry.Team.Name}
-			for _, stat := range entry.Stats {
-				var val int
-				switch stat.Name {
-				case "gamesPlayed":
-					parseStat(&stat, &val)
-					team.Played = val
-				case "wins":
-					parseStat(&stat, &val)
-					team.Wins = val
-				case "ties":
-					parseStat(&stat, &val)
-					team.Draws = val
-				case "losses":
-					parseStat(&stat, &val)
-					team.Losses = val
-				case "points":
-					parseStat(&stat, &val)
-					team.Points = val
-				case "goalsFor":
-					parseStat(&stat, &val)
-					team.GoalsFor = val
-				case "goalsAgainst":
-					parseStat(&stat, &val)
-					team.GoalsAgainst = val
-				case "goalDifferential":
-					parseStat(&stat, &val)
-					team.GoalDiff = val
-				}
-			}
-			group.Teams = append(group.Teams, team)
+	for _, gName := range groupOrder {
+		teamMap := groupsMap[gName]
+		var teams []TeamStanding
+		for name, st := range teamMap {
+			teams = append(teams, TeamStanding{
+				TeamName:     name,
+				Played:       st.played,
+				Wins:         st.wins,
+				Draws:        st.draws,
+				Losses:       st.losses,
+				GoalsFor:     st.goalsFor,
+				GoalsAgainst: st.goalsAgainst,
+				GoalDiff:     st.goalsFor - st.goalsAgainst,
+				Points:       st.points,
+			})
 		}
-		groups = append(groups, group)
+		// Sort by points (desc), then goal diff (desc), then goals for (desc)
+		sort.Slice(teams, func(i, j int) bool {
+			if teams[i].Points != teams[j].Points {
+				return teams[i].Points > teams[j].Points
+			}
+			if teams[i].GoalDiff != teams[j].GoalDiff {
+				return teams[i].GoalDiff > teams[j].GoalDiff
+			}
+			return teams[i].GoalsFor > teams[j].GoalsFor
+		})
+		groups = append(groups, GroupStanding{
+			Group: gName,
+			Teams: teams,
+		})
 	}
 
+	if groups == nil {
+		return []GroupStanding{}, nil
+	}
 	return groups, nil
 }
 
