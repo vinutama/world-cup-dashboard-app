@@ -127,9 +127,13 @@ Add a `GET /api/v1/games` backend endpoint that queries Polymarket's Gamma API f
 
 ## Success Criteria
 
-- [ ] `GET /api/v1/games` returns 200 with 16 match items (or all available)
-- [ ] Each match has: slug, team1, team2, date, percentHome, percentAway, volume
-- [ ] Games frontend page renders with live odds
-- [ ] Go tests 43+/43+ pass
-- [ ] Playwright tests 9+/9+ pass
-- [ ] All Docker containers build and serve correctly
+- [x] `GET /api/v1/games` returns 200 with 16 match items (or all available)
+- [x] Each match has: slug, team1, team2, date, percentHome, percentAway, volume
+- [x] Games frontend page renders with live odds
+- [x] Go tests 43+/43+ pass
+- [x] Playwright tests 9+/9+ pass
+- [x] All Docker containers build and serve correctly
+
+---
+
+## Phase 14: TBD

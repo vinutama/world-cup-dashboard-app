@@ -118,7 +118,6 @@ func setupTestHandler() *Handler {
 			},
 		},
 		nil, // rdb — no Redis in tests
-		"",  // apiFootballKey
 		slog.Default(),
 	)
 }

@@ -39,13 +39,7 @@ func main() {
 	}
 	logger.Info("redis connected", "addr", redisAddr)
 
-	// Read API-Football key
-	apiFootballKey := os.Getenv("API_FOOTBALL_KEY")
-	if apiFootballKey == "" {
-		logger.Warn("API_FOOTBALL_KEY not set — match oracle will return errors")
-	}
-
-	// Initialize layers
+	// All data comes from Polymarket Gamma API — no external API keys needed
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 
 	yearRepo := repository.NewYearRepo(httpClient)
@@ -54,8 +48,7 @@ func main() {
 	matchSvc := service.NewMatchService(yearRepo, matchRepo)
 	yearSvc := service.NewYearService(matchSvc)
 
-	h := handler.New(yearSvc, matchSvc, rdb, apiFootballKey, logger)
-
+	h := handler.New(yearSvc, matchSvc, rdb, logger)
 	// Set up routing
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
