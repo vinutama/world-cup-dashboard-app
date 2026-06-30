@@ -241,4 +241,86 @@ Replace all third-party sports APIs and upgrade the dashboard to *exclusively* s
   </div>
   ```
 * [ ] Hero Header: Remove any leftover API-Football components (old "Advice" text box). Replace with a glowing neon header displaying `data.fixtureName`.
-* [ ] Stat Labels: Display percentages below the bar: `HOME {data.percentHome}%`, `DRAW {data.percentDraw}%`, `AWAY {data.percentAway}%`.
+|----
+
+# PHASE 14: GOLDEN BOOT WINNER PREDICTIONS
+
+## 🎯 Objective
+Add a new dashboard page showing the top 10 players most predicted to win the **Golden Boot** (top goalscorer) at the 2026 World Cup, sourced from Polymarket Gamma API.
+
+**Source:** `https://polymarket.com/event/world-cup-golden-boot-winner`  
+**Gamma slug:** `world-cup-golden-boot-winner` (event ID: 413862)  
+**Data:** 80 binary markets — each is "Will [Player] be the top goalscorer?" with Yes/No outcome prices
+
+---
+
+### 14.1 Backend: Golden Boot endpoint (`GET /api/v1/predictions/golden-boot`)
+* [ ] New handler `GetGoldenBoot(w, r)` at `GET /api/v1/predictions/golden-boot`
+* [ ] Fetch `https://gamma-api.polymarket.com/events?slug=world-cup-golden-boot-winner&closed=false`
+* [ ] For each market extract:
+  * Player name from question text
+  * Yes-probability from `outcomePrices[0]`
+* [ ] Sort descending by probability, take top 10
+* [ ] Use existing `priceToPercent` helper for float→int conversion
+* [ ] In-memory cache with 60s TTL (same pattern as games/standings)
+* [ ] Return JSON: `[{ "player": "Lionel Messi", "probability": 52 }, ...]`
+* [ ] Returns `[]` on error — no fallback or derivation
+
+### 14.2 Frontend: Golden Boot page
+* [ ] Create `src/pages/GoldenBoot.tsx`
+* [ ] Fetch `/api/v1/predictions/golden-boot` on mount
+* [ ] Top 10 player cards with rank, name, percentage, neon progress bar
+* [ ] #1 gold / #2 silver / #3 bronze gradient ranks (matching Pulse Wisdom Wheel style)
+* [ ] Loading skeleton (10 shimmer rows)
+* [ ] Empty/error state
+* [ ] Register `/golden-boot` route in `App.tsx`
+
+### 14.3 Navigation & Testing
+* [ ] Add "Golden Boot" nav item to `Layout.tsx`
+* [ ] Add unit test `TestGetGoldenBoot` — verify handler returns valid JSON array
+* [ ] Create `e2e/golden-boot.spec.ts` — page load + nav click
+* [ ] `go test ./...` passes
+* [ ] `npx playwright test` passes
+* [ ] `docker compose build` + integration verification
+
+---
+
+# PHASE 15: CONTINENT WORLD CUP WINNER PREDICTIONS
+
+## 🎯 Objective
+Add a new dashboard page showing which **continent** is predicted to win the 2026 World Cup, sourced from Polymarket Gamma API.
+
+**Source:** `https://polymarket.com/event/which-continent-will-win-the-world-cup`  
+**Gamma slug:** `which-continent-will-win-the-world-cup` (event ID: 98349)  
+**Data:** 7 binary markets — each is "Will {Continent} win the 2026 WC?" with Yes/No prices
+
+---
+
+### 15.1 Backend: Continent endpoint (`GET /api/v1/predictions/continent`)
+* [ ] New handler `GetContinentPredictions(w, r)` at `GET /api/v1/predictions/continent`
+* [ ] Fetch `https://gamma-api.polymarket.com/events?slug=which-continent-will-win-the-world-cup&closed=false`
+* [ ] For each market extract:
+  * Continent name from question text
+  * Yes-probability from `outcomePrices[0]`
+  * Clean continental labels: UEFA→Europe, CONMEBOL→South America, CONCACAF→North America, CAF→Africa, OCF→Oceania, AFC→Asia
+* [ ] Sort descending by probability
+* [ ] Filter out "another continent" market (0% placeholder)
+* [ ] Use existing `priceToPercent` helper
+* [ ] In-memory cache with 60s TTL
+* [ ] Return JSON: `[{ "continent": "Europe", "label": "Europe (UEFA)", "probability": 61 }, ...]`
+* [ ] Returns `[]` on error — no fallback
+
+### 15.2 Frontend: Continent page
+* [ ] Create `src/pages/Continent.tsx`
+* [ ] Fetch `/api/v1/predictions/continent` on mount
+* [ ] Continent cards with emoji flag, name, confederation label, percentage, neon bar
+* [ ] Loading skeleton + empty/error state
+* [ ] Register `/continent` route in `App.tsx`
+
+### 15.3 Navigation & Testing
+* [ ] Add "Continent" nav item to `Layout.tsx`
+* [ ] Add unit test `TestGetContinentPredictions` — verify handler returns valid JSON
+* [ ] Create `e2e/continent.spec.ts` — page load + nav click
+* [ ] `go test ./...` passes
+* [ ] `npx playwright test` passes
+* [ ] `docker compose build` + verification

@@ -136,14 +136,14 @@ Add a `GET /api/v1/games` backend endpoint that queries Polymarket's Gamma API f
 
 ---
 
-## Phase 14: Stats & Standings — Group Tables with Live Results
+## Phase 13.8: Stats & Standings — Group Tables with Live Results
 
 ### Overview
 Add a `GET /api/v1/standings` backend endpoint that fetches live World Cup 2026 group standings from the ESPN public API. Add a frontend Standings page rendering all 12 group tables with team stats (P, W, D, L, GF, GA, GD, PTS).
 
 ### Tasks
 
-#### 14.1 Backend: Standings endpoint + ESPN API integration
+#### 13.8.1 Backend: Standings endpoint + ESPN API integration
 - [x] New handler `GetStandings(w, r)` at `GET /api/v1/standings`
 - [x] Fetch `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.worldcup/standings`
 - [x] Parse `children → standings → entries → stats` into `GroupStanding`/`TeamStanding` types
@@ -151,12 +151,12 @@ Add a `GET /api/v1/standings` backend endpoint that fetches live World Cup 2026 
 - [x] In-memory cache with 60s TTL (same pattern as games cache)
 - [x] Return JSON array: `[{ group, teams: [{ teamName, played, wins, draws, losses, goalsFor, goalsAgainst, goalDiff, points }] }]`
 
-#### 14.2 Backend: Route + test
+#### 13.8.2 Backend: Route + test
 - [x] Register `GET /api/v1/standings` route in `RegisterRoutes`
 - [x] Add unit test `TestGetStandings_ReturnsValidJSON`
 - [x] `go test ./...` passes (45/45)
 
-#### 14.3 Frontend: Standings page component
+#### 13.8.3 Frontend: Standings page component
 - [x] Create `src/pages/Standings.tsx` — fetches `/api/v1/standings`, renders group tables
 - [x] Group grid layout (2 columns on desktop, 1 on mobile)
 - [x] Table columns: #, Team (with flag), P, W, D, L, GF, GA, GD, PTS
@@ -166,12 +166,12 @@ Add a `GET /api/v1/standings` backend endpoint that fetches live World Cup 2026 
 - [x] Register `/standings` route in `App.tsx`
 - [x] Add "Standings" nav item in `Layout.tsx`
 
-#### 14.4 Frontend: Playwright e2e test
+#### 13.8.4 Frontend: Playwright e2e test
 - [x] Create `e2e/standings.spec.ts` — page load + nav click
 - [x] Handles both success (data renders) and error (ESPN unreachable in CI) states
 - [x] `npx playwright test` passes (26/26)
 
-#### 14.5 Docker build + integration
+#### 13.8.5 Docker build + integration
 - [x] `docker compose build frontend && docker compose up -d frontend`
 - [x] Playwright tests against Docker stack pass
 
@@ -185,3 +185,92 @@ Add a `GET /api/v1/standings` backend endpoint that fetches live World Cup 2026 
 - [x] Go tests 45/45 pass
 - [x] Playwright tests 26/26 pass
 - [x] All Docker containers build and serve correctly
+
+---
+
+## Phase 14: Golden Boot Winner Predictions
+
+### Overview
+Add a new dashboard page showing the **top 10 players** most predicted to win the Golden Boot (top goalscorer) at the 2026 World Cup, sourced from Polymarket's Gamma API. Each player has a binary "Will {Player} be the top goalscorer?" market — the Yes price is the predicted probability.
+
+**Gamma slug:** `world-cup-golden-boot-winner` (event ID: 413862, 80 markets)
+
+### Tasks
+
+#### 14.1 Backend: Golden Boot endpoint (`GET /api/v1/predictions/golden-boot`)
+- [ ] New handler `GetGoldenBoot(w, r)` at `GET /api/v1/predictions/golden-boot`
+- [ ] Fetch `https://gamma-api.polymarket.com/events?slug=world-cup-golden-boot-winner&closed=false`
+- [ ] Parse `markets` array; for each market:
+  - Extract player name from question text (`"Will Lionel Messi be the top goalscorer..."`)
+  - Extract Yes-probability from `outcomePrices[0]`
+  - Normalize question parsing to handle varying question formats
+- [ ] Sort descending by probability, take top 10
+- [ ] Use existing `priceToPercent` helper for float→int conversion
+- [ ] In-memory cache with 60s TTL (same pattern as games cache)
+- [ ] Return JSON: `[{ "player": "Lionel Messi", "probability": 52 }, ...]`
+- [ ] Returns `[]` on error — no fallback or derivation
+
+#### 14.2 Frontend: Golden Boot page
+- [ ] Create `src/pages/GoldenBoot.tsx`
+- [ ] Fetch `/api/v1/predictions/golden-boot` on mount
+- [ ] Top 10 player cards with:
+  - Rank number (#1 gold, #2 silver, #3 bronze gradient — matching Pulse Wisdom Wheel style)
+  - Player name
+  - Percentage (large tabular-nums)
+  - Neon progress bar (glassmorphic, same design language as Pulse)
+- [ ] Loading skeleton (10 shimmer rows)
+- [ ] Empty/error state
+- [ ] Register `/golden-boot` route in `App.tsx`
+
+#### 14.3 Navigation & Testing
+- [ ] Add "Golden Boot" nav item to `Layout.tsx`
+- [ ] Add unit test `TestGetGoldenBoot` — verify handler returns valid JSON array with top 10
+- [ ] Create `e2e/golden-boot.spec.ts` — page loads, nav click works, data renders
+- [ ] `go test ./...` passes
+- [ ] `npx playwright test` passes
+- [ ] `docker compose build` + `curl` verification
+
+---
+
+## Phase 15: Continent World Cup Winner Predictions
+
+### Overview
+Add a new dashboard page showing which **continent** is predicted to win the 2026 World Cup, sourced from Polymarket's Gamma API. Each continent has a binary "Will {Continent} win?" market — the Yes price is the predicted probability.
+
+**Gamma slug:** `which-continent-will-win-the-world-cup` (event ID: 98349, 7 markets)  
+**Continents:** UEFA (Europe), CONMEBOL (South America), CONCACAF (North America), CAF (Africa), OCF (Oceania), AFC (Asia) + "another continent" (filtered out)
+
+### Tasks
+
+#### 15.1 Backend: Continent endpoint (`GET /api/v1/predictions/continent`)
+- [ ] New handler `GetContinentPredictions(w, r)` at `GET /api/v1/predictions/continent`
+- [ ] Fetch `https://gamma-api.polymarket.com/events?slug=which-continent-will-win-the-world-cup&closed=false`
+- [ ] Parse `markets` array; for each market:
+  - Extract continent name from question text (`"Will North America (CONCACAF) win..."`)
+  - Extract Yes-probability from `outcomePrices[0]`
+  - Clean confederation codes to display names: UEFA→Europe, CONMEBOL→South America, CONCACAF→North America, CAF→Africa, OCF→Oceania, AFC→Asia
+- [ ] Sort descending by probability
+- [ ] Filter out "another continent" market (0% placeholder)
+- [ ] Use existing `priceToPercent` helper
+- [ ] In-memory cache with 60s TTL
+- [ ] Return JSON: `[{ "continent": "Europe", "label": "Europe (UEFA)", "probability": 61 }, ...]`
+- [ ] Returns `[]` on error — no fallback
+
+#### 15.2 Frontend: Continent page
+- [ ] Create `src/pages/Continent.tsx`
+- [ ] Fetch `/api/v1/predictions/continent` on mount
+- [ ] Continent cards with:
+  - Emoji flag/icon (🌍 Europe, 🌎 Americas, 🌍 Africa, 🌏 Asia, 🌊 Oceania)
+  - Continent name + confederation label
+  - Percentage (large tabular-nums)
+  - Neon progress bar (glassmorphic style)
+- [ ] Loading skeleton + empty/error state
+- [ ] Register `/continent` route in `App.tsx`
+
+#### 15.3 Navigation & Testing
+- [ ] Add "Continent" nav item to `Layout.tsx`
+- [ ] Add unit test `TestGetContinentPredictions` — verify handler returns valid JSON array
+- [ ] Create `e2e/continent.spec.ts` — page loads, nav click works, data renders
+- [ ] `go test ./...` passes
+- [ ] `npx playwright test` passes
+- [ ] `docker compose build` + verification
