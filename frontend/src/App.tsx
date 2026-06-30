@@ -9,6 +9,7 @@ import ErrorBoundary from './pages/ErrorBoundary';
 import GoalAvalanche from './pages/GoalAvalanche';
 import PulseDashboard from './pages/PulseDashboard';
 import Games from './pages/Games';
+import Standings from './pages/Standings';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/goal-avalanche/:year" element={<GoalAvalanche />} />
           <Route path="/pulse" element={<PulseDashboard />} />
           <Route path="/games" element={<Games />} />
+          <Route path="/standings" element={<Standings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
