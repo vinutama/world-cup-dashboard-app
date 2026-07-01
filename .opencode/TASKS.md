@@ -310,7 +310,7 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [x] Show probability percentage as text inline next to team name
 
 ### 16.5 Testing
-- [ ] Verify Pulse Oracle loads with spinning wheel + half-width list + empty right column
-- [ ] Confirm Match Oracle section is completely gone (no card, no ghost)
-- [ ] `go test ./...` passes (no backend changes)
-- [ ] `npx playwright test` passes
+- [x] Verify Pulse Oracle loads with spinning wheel + half-width list + empty right column
+- [x] Confirm Match Oracle section is completely gone (no card, no ghost)
+- [x] `go test ./...` passes (no backend changes)
+- [x] `npx playwright test` passes — 5 new E2E tests added for Pulse Oracle

@@ -364,8 +364,8 @@ Upgrade the Pulse Oracle page with a **spinning wheel component** for the top 10
 * [x] Show probability percentage as text **inline next to team name** (moved from right-aligned)
 
 ### 16.5 Testing
-* [ ] Verify Pulse Oracle page loads with spinning wheel + half-width wisdom list + empty right column
-* [ ] Confirm flag icons render from flagsapi.com
-* [ ] Confirm Match Oracle is completely gone (no card, no ghost)
-* [ ] All existing Go tests pass (backend unchanged)
-* [ ] All existing Playwright tests pass
+* [x] Verify Pulse Oracle page loads with spinning wheel + half-width wisdom list + empty right column
+* [x] Confirm flag icons render from flagsapi.com
+* [x] Confirm Match Oracle is completely gone (no card, no ghost)
+* [x] All existing Go tests pass (backend unchanged)
+* [x] All existing Playwright tests pass — 5 new E2E tests added for Pulse Oracle
