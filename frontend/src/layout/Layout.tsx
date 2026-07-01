@@ -12,6 +12,7 @@ const navItems = [
   { path: '/pulse', label: 'Pulse Oracle' },
   { path: '/games', label: 'Games' },
   { path: '/standings', label: 'Standings' },
+  { path: '/golden-boot', label: 'Golden Boot' },
 ];
 
 export default function Layout({ children }: LayoutProps) {

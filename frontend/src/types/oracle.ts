@@ -24,3 +24,8 @@ export interface GameItem {
   volume: number;
   source: string;
 }
+
+export interface GoldenBootPlayer {
+  player: string;
+  probability: number;
+}
