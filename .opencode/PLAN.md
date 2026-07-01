@@ -350,13 +350,13 @@ Upgrade the Pulse Oracle page with a **spinning wheel component** for the top 10
 * [ ] Render `<WisdomWheel>` **right below the "Pulse Oracle" title**, before the grid
 * [ ] Keep the Wisdom Wheel inline list in the **left column** (`lg:col-span-7`) — unchanged from current layout
 
-### 16.3 Remove Match Oracle Section
-* [ ] Delete the `MatchOracleList` function component entirely
-* [ ] Delete the `OracleListSkeleton` function (no longer needed)
-* [ ] Remove the Match Oracle fetch call from `useEffect`
-* [ ] Remove the `oracle` and `loadingOracle` state variables
-* [ ] Remove the imports for `UpcomingMatch` type (no longer used)
-* [ ] Keep the **right column empty** as a placeholder (`lg:col-span-5`) — ready for continent list later
+### 16.3 Remove Match Oracle Section (`frontend/src/pages/PulseDashboard.tsx`)
+* [x] Delete the `MatchOracleList` function component entirely
+* [x] Delete the `OracleListSkeleton` function (no longer needed)
+* [x] Remove the Match Oracle fetch call from `useEffect`
+* [x] Remove the `oracle` and `loadingOracle` state variables
+* [x] Remove the imports for `UpcomingMatch` type (no longer used)
+* [x] Keep the **right column empty** as a placeholder — ready for continent list later
 
 ### 16.4 Full-Width Progress Bars in Wisdom Wheel Inline List
 * [ ] Change progress bar widths from proportional (`fav.probability%`) to **full width (100%)**

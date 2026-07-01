@@ -297,12 +297,12 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [x] Wheel sits full-width, centered, responsive (handled by the component itself)
 
 ### 16.3 Remove Match Oracle Section
-- [ ] Delete the `MatchOracleList` function component entirely
-- [ ] Delete the `OracleListSkeleton` function (no longer needed)
-- [ ] Remove the Match Oracle fetch call from `useEffect`
-- [ ] Remove the `oracle` and `loadingOracle` state variables
-- [ ] Remove `UpcomingMatch` type import (no longer used)
-- [ ] Keep the **right column empty** as a placeholder (`lg:col-span-5`) — ready for continent list later
+- [x] Delete the `MatchOracleList` function component entirely
+- [x] Delete the `OracleListSkeleton` function (no longer needed)
+- [x] Remove the Match Oracle fetch call from `useEffect`
+- [x] Remove the `oracle` and `loadingOracle` state variables
+- [x] Remove `UpcomingMatch` type import (no longer used)
+- [x] Keep the **right column empty** as a placeholder (`lg:col-span-5`) — ready for continent list later
 
 ### 16.4 Full-Width Progress Bars in Wisdom Wheel Inline List
 - [ ] Change bar widths from proportional (`fav.probability%`) to full width (100%)
