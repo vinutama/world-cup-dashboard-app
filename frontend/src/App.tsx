@@ -10,6 +10,7 @@ import GoalAvalanche from './pages/GoalAvalanche';
 import PulseDashboard from './pages/PulseDashboard';
 import Games from './pages/Games';
 import Standings from './pages/Standings';
+import GoldenBoot from './pages/GoldenBoot';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/pulse" element={<PulseDashboard />} />
           <Route path="/games" element={<Games />} />
           <Route path="/standings" element={<Standings />} />
+          <Route path="/golden-boot" element={<GoldenBoot />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
