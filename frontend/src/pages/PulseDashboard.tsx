@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { GlobalFavorite, UpcomingMatch } from '../types/oracle';
+import WisdomWheel, { WisdomWheelSkeleton } from '../components/WisdomWheel';
 
 // ─ Helpers ─────────────────────────────────────
 const rankColor = (i: number) => {
@@ -220,6 +221,9 @@ export default function PulseDashboard() {
           {error}
         </div>
       )}
+
+      {/* Spinning Wisdom Wheel — decorative ambient wheel */}
+      {loadingWheel ? <WisdomWheelSkeleton /> : <WisdomWheel data={leaderboard} />}
 
       {/* 12-col responsive grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
