@@ -58,19 +58,22 @@ function Segment({
         transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-${RADIUS}px)`,
       }}
     >
-      <div
-        className="flex items-center gap-1 transition-all duration-300 hover:scale-110"
-        style={{ transform: `rotate(-${angle}deg)` }}
-      >
-        <img
-          src={flagUrl(team)}
-          alt={team}
-          className="w-7 h-5 rounded-sm object-cover shrink-0 shadow-[0_0_6px_rgba(0,0,0,0.5)]"
-          loading="lazy"
-        />
-        <span className="text-[11px] font-bold text-cyan-300 tabular-nums drop-shadow-[0_0_4px_rgba(6,182,212,0.4)]">
-          {probability}
-        </span>
+      {/* Counter-rotate so content stays upright while wheel spins */}
+      <div className="animate-counter-spin group-hover:[animation-play-state:paused]">
+        <div
+          className="flex items-center gap-1 transition-all duration-300 hover:scale-110"
+          style={{ transform: `rotate(${-angle}deg)` }}
+        >
+          <img
+            src={flagUrl(team)}
+            alt={team}
+            className="w-7 h-5 rounded-sm object-cover shrink-0 shadow-[0_0_6px_rgba(0,0,0,0.5)]"
+            loading="lazy"
+          />
+          <span className="text-[11px] font-bold text-cyan-300 tabular-nums drop-shadow-[0_0_4px_rgba(6,182,212,0.4)]">
+            {probability}%
+          </span>
+        </div>
       </div>
     </div>
   );
