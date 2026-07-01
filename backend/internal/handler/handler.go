@@ -39,12 +39,13 @@ type MatchService interface {
 
 // Handler groups all HTTP handlers and their dependencies.
 type Handler struct {
-	yearSvc         YearService
-	matchSvc        MatchService
-	rdb             *redis.Client
-	logger          *slog.Logger
-	gamesCache      *gamesCacheData
-	standingsCache  *standingsCacheData
+	yearSvc          YearService
+	matchSvc         MatchService
+	rdb              *redis.Client
+	logger           *slog.Logger
+	gamesCache       *gamesCacheData
+	standingsCache   *standingsCacheData
+	goldenBootCache  *goldenBootCacheData
 }
 
 // gamesCacheData holds a TTL-protected in-memory cache for the games list
@@ -60,6 +61,14 @@ type gamesCacheData struct {
 type standingsCacheData struct {
 	mu      sync.Mutex
 	data    []GroupStanding
+	expires time.Time
+	ttl     time.Duration
+}
+
+// goldenBootCacheData holds a TTL-protected in-memory cache for golden boot predictions.
+type goldenBootCacheData struct {
+	mu      sync.Mutex
+	data    []GoldenBootResponse
 	expires time.Time
 	ttl     time.Duration
 }
@@ -80,6 +89,9 @@ func New(yearSvc YearService, matchSvc MatchService, rdb *redis.Client, logger *
 		standingsCache: &standingsCacheData{
 			ttl: 60 * time.Second,
 		},
+		goldenBootCache: &goldenBootCacheData{
+			ttl: 60 * time.Second,
+		},
 	}
 }
 
@@ -96,6 +108,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/predictions/match/next", h.GetNextMatchOracle)
 	mux.HandleFunc("GET /api/v1/games", h.GetGamesList)
 	mux.HandleFunc("GET /api/v1/standings", h.GetStandings)
+	mux.HandleFunc("GET /api/v1/predictions/golden-boot", h.GetGoldenBoot)
 }
 
 // Health responds with service status.
@@ -377,6 +390,15 @@ type GlobalLeaderboardResponse struct {
 // TopLeaderboardTeams is the maximum number of teams to return.
 const TopLeaderboardTeams = 10
 
+// GoldenBootResponse represents a single player in the golden boot predictions.
+type GoldenBootResponse struct {
+	Player      string `json:"player"`
+	Probability int    `json:"probability"`
+}
+
+// TopGoldenBootPlayers is the maximum number of golden boot candidates to return.
+const TopGoldenBootPlayers = 10
+
 // GetGlobalLeaderboard returns the top-10 World Cup winner predictions from Polymarket.
 // No fallback — when gamma-api is unreachable, returns error with empty array.
 func (h *Handler) GetGlobalLeaderboard(w http.ResponseWriter, r *http.Request) {
@@ -477,6 +499,138 @@ func parseWorldCupTeam(question string) string {
 		return ""
 	}
 	return question[len(prefix) : len(question)-len(suffix)]
+}
+
+// --- Golden Boot ---
+
+// GetGoldenBoot returns the top-10 Golden Boot (top goalscorer) predictions
+// from Polymarket gamma-api. Uses an in-memory cache with 60s TTL.
+// No fallback — returns [] on error.
+func (h *Handler) GetGoldenBoot(w http.ResponseWriter, r *http.Request) {
+	// Check in-memory cache first
+	if h.goldenBootCache != nil {
+		h.goldenBootCache.mu.Lock()
+		if !h.goldenBootCache.expires.IsZero() && time.Now().Before(h.goldenBootCache.expires) {
+			data := h.goldenBootCache.data
+			h.goldenBootCache.mu.Unlock()
+			writeJSON(w, http.StatusOK, data)
+			return
+		}
+		h.goldenBootCache.mu.Unlock()
+	}
+
+	// Cache miss — fetch fresh data
+	results, err := h.fetchGammaGoldenBoot(r.Context())
+	if err != nil {
+		h.logger.Warn("failed to fetch Golden Boot predictions from Gamma API (no fallback)", "error", err)
+		writeJSON(w, http.StatusOK, []GoldenBootResponse{})
+		return
+	}
+
+	// Cache the result
+	if h.goldenBootCache != nil {
+		h.goldenBootCache.mu.Lock()
+		h.goldenBootCache.data = results
+		h.goldenBootCache.expires = time.Now().Add(h.goldenBootCache.ttl)
+		h.goldenBootCache.mu.Unlock()
+	}
+
+	writeJSON(w, http.StatusOK, results)
+}
+
+// fetchGammaGoldenBoot queries the Polymarket gamma-api for the Golden Boot
+// winner event, extracts player names and Yes probabilities, sorts descending
+// by probability, and returns the top 10 candidates.
+func (h *Handler) fetchGammaGoldenBoot(ctx context.Context) ([]GoldenBootResponse, error) {
+	endpoint := "https://gamma-api.polymarket.com/events?slug=world-cup-golden-boot-winner&closed=false"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating golden boot request: %w", err)
+	}
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := gammaHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling golden boot gamma-api: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gamma-api golden boot status: %d", resp.StatusCode)
+	}
+
+	// The /events endpoint returns an array of event objects, each with a markets array
+	type GammaEvent struct {
+		Markets []struct {
+			Question      string          `json:"question"`
+			OutcomePrices json.RawMessage `json:"outcomePrices"`
+		} `json:"markets"`
+	}
+
+	var events []GammaEvent
+	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
+		return nil, fmt.Errorf("decoding golden boot response: %w", err)
+	}
+
+	if len(events) == 0 {
+		return nil, errors.New("golden boot events response was empty")
+	}
+
+	var results []GoldenBootResponse
+	for _, event := range events {
+		for _, market := range event.Markets {
+			player := parseGoldenBootPlayer(market.Question)
+			if player == "" {
+				continue
+			}
+
+			prices := parseRawJsonSlice(market.OutcomePrices)
+			if len(prices) == 0 {
+				continue
+			}
+
+			prob := priceToPercent(prices[0])
+			if prob == 0 {
+				continue
+			}
+
+			results = append(results, GoldenBootResponse{
+				Player:      player,
+				Probability: prob,
+			})
+		}
+	}
+
+	if len(results) == 0 {
+		return nil, errors.New("successfully hit Gamma API but parsed 0 valid golden boot players")
+	}
+
+	// Sort descending by probability
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Probability > results[j].Probability
+	})
+
+	// Take top 10
+	if len(results) > TopGoldenBootPlayers {
+		results = results[:TopGoldenBootPlayers]
+	}
+
+	return results, nil
+}
+
+// goldenBootPlayerRe extracts the player name from a Polymarket question like
+// "Will Lionel Messi be the top goalscorer in the 2026 FIFA World Cup?"
+var goldenBootPlayerRe = regexp.MustCompile(`^Will\s+(.+?)\s+be\s+the\s+top\s+goalscorer`)
+
+// parseGoldenBootPlayer extracts the player name from a golden boot question text.
+// Returns empty string if the format doesn't match.
+func parseGoldenBootPlayer(question string) string {
+	matches := goldenBootPlayerRe.FindStringSubmatch(question)
+	if len(matches) < 2 {
+		return ""
+	}
+	return matches[1]
 }
 
 // --- Match Oracle ---
