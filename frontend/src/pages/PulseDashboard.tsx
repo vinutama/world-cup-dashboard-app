@@ -59,7 +59,10 @@ function WisdomWheelList({ data }: { data: GlobalFavorite[] }) {
                 </span>
               </div>
               <div className="w-full h-2 bg-zinc-800/80 rounded-full overflow-hidden p-[1px]">
-                <div className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 rounded-full shadow-[0_0_12px_rgba(6,182,212,0.8)] w-full" />
+                <div
+                  className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 rounded-full shadow-[0_0_12px_rgba(6,182,212,0.8)] transition-all duration-1000 ease-out"
+                  style={{ width: `${fav.probability}%` }}
+                />
               </div>
             </div>
           </div>
