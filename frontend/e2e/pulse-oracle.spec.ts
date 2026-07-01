@@ -35,8 +35,8 @@ test.describe('Pulse Oracle', () => {
     // Check for the WC center hub (static element always present inside the wheel)
     await page.waitForTimeout(1000);
 
-    // The wheel is a 340x340 relative container — check it exists
-    const wheel = page.locator('.relative.w-\\[340px\\]');
+    // The wheel is a 320x320 relative container — check it exists
+    const wheel = page.locator('.relative.w-\\[320px\\]');
     await expect(wheel).toBeVisible({ timeout: 10000 });
 
     // Hover the wheel to verify pause on hover works (animation-play-state)
