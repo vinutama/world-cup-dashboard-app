@@ -211,24 +211,24 @@ Add a new dashboard page showing the **top 10 players** most predicted to win th
 - [x] Returns `[]` on error — no fallback or derivation
 
 #### 14.2 Frontend: Golden Boot page
-- [ ] Create `src/pages/GoldenBoot.tsx`
-- [ ] Fetch `/api/v1/predictions/golden-boot` on mount
-- [ ] Top 10 player cards with:
+- [x] Create `src/pages/GoldenBoot.tsx`
+- [x] Fetch `/api/v1/predictions/golden-boot` on mount
+- [x] Top 10 player cards with:
   - Rank number (#1 gold, #2 silver, #3 bronze gradient — matching Pulse Wisdom Wheel style)
   - Player name
   - Percentage (large tabular-nums)
   - Neon progress bar (glassmorphic, same design language as Pulse)
-- [ ] Loading skeleton (10 shimmer rows)
-- [ ] Empty/error state
-- [ ] Register `/golden-boot` route in `App.tsx`
+- [x] Loading skeleton (10 shimmer rows)
+- [x] Empty/error state
+- [x] Register `/golden-boot` route in `App.tsx`
 
 #### 14.3 Navigation & Testing
-- [ ] Add "Golden Boot" nav item to `Layout.tsx`
-- [ ] Add unit test `TestGetGoldenBoot` — verify handler returns valid JSON array with top 10
-- [ ] Create `e2e/golden-boot.spec.ts` — page loads, nav click works, data renders
-- [ ] `go test ./...` passes
-- [ ] `npx playwright test` passes
-- [ ] `docker compose build` + `curl` verification
+- [x] Add "Golden Boot" nav item to `Layout.tsx`
+- [x] Add unit test `TestGetGoldenBoot` — verify handler returns valid JSON array with top 10
+- [x] Create `e2e/golden-boot.spec.ts` — page loads, nav click works, data renders
+- [x] `go test ./...` passes
+- [x] `npx playwright test` passes
+- [x] `docker compose build` + `curl` verification
 
 ---
 
