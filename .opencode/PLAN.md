@@ -359,9 +359,9 @@ Upgrade the Pulse Oracle page with a **spinning wheel component** for the top 10
 * [x] Keep the **right column empty** as a placeholder — ready for continent list later
 
 ### 16.4 Full-Width Progress Bars in Wisdom Wheel Inline List
-* [ ] Change progress bar widths from proportional (`fav.probability%`) to **full width (100%)**
-* [ ] Keep the neon gradient styling (cyan→blue→indigo) as a decorative full bar
-* [ ] Display probability percentage as text overlay or next to the bar
+* [x] Change progress bar widths from proportional (`fav.probability%`) to **full width (100%)**
+* [x] Keep neon gradient styling as decorative full bar
+* [x] Show probability percentage as text **inline next to team name** (moved from right-aligned)
 
 ### 16.5 Testing
 * [ ] Verify Pulse Oracle page loads with spinning wheel + half-width wisdom list + empty right column

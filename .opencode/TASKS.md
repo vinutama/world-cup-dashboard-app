@@ -305,9 +305,9 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [x] Keep the **right column empty** as a placeholder (`lg:col-span-5`) — ready for continent list later
 
 ### 16.4 Full-Width Progress Bars in Wisdom Wheel Inline List
-- [ ] Change bar widths from proportional (`fav.probability%`) to full width (100%)
-- [ ] Keep neon gradient styling as decorative full bar
-- [ ] Show probability percentage as text next to the bar
+- [x] Change bar widths from proportional (`fav.probability%`) to full width (100%)
+- [x] Keep neon gradient styling as decorative full bar
+- [x] Show probability percentage as text inline next to team name
 
 ### 16.5 Testing
 - [ ] Verify Pulse Oracle loads with spinning wheel + half-width list + empty right column
