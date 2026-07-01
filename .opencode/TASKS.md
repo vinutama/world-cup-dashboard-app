@@ -297,20 +297,26 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [ ] Keep the existing Match Oracle section unchanged (right viewport)
 - [ ] Wheel sits full-width, centered, responsive
 
-### 16.3 Remove Match Oracle Empty-State Card
-- [ ] In `MatchOracleList`, remove the "No upcoming match predictions available" empty-state block
-- [ ] When `data` is null or empty array, render `null` (nothing)
-- [ ] Still show `OracleListSkeleton` during `loading=true`
+### 16.3 Remove Match Oracle Section
+- [ ] Delete the `MatchOracleList` function component entirely
+- [ ] Delete the `OracleListSkeleton` function (no longer needed)
+- [ ] Remove the Match Oracle fetch call from `useEffect`
+- [ ] Remove the `oracle` and `loadingOracle` state variables
+- [ ] Remove `UpcomingMatch` type import (no longer used)
+- [ ] Grid becomes single-column — only Wisdom Wheel inline list remains
 
-### 16.4 Full-Width Progress Bars
-- [ ] In the fallback list view (accessible to screen readers / if wheel can't render), change bar widths to full (100%)
-- [ ] Keep the neon gradient fill as decorative background
-- [ ] Display probability percentage as text value next to/over the bar
-- [ ] Ensure the wheel segments also show full decorative arcs
+### 16.4 Wisdom Wheel Inline List → Full Width
+- [ ] Change `lg:col-span-7` to `lg:col-span-12`
+- [ ] Delete the right column div (Match Oracle)
+- [ ] Simplify grid to single column
 
-### 16.5 Testing
-- [ ] Verify Pulse Oracle page loads without errors
-- [ ] Confirm wheel renders with 10 segments + flags
-- [ ] Confirm Match Oracle section is blank (no card) when API returns null
+### 16.5 Full-Width Progress Bars in Wisdom Wheel
+- [ ] Change bar widths from proportional (`fav.probability%`) to full width (100%)
+- [ ] Keep neon gradient styling as decorative full bar
+- [ ] Show probability percentage as text next to the bar
+
+### 16.6 Testing
+- [ ] Verify Pulse Oracle loads with spinning wheel + full-width list
+- [ ] Confirm Match Oracle section is completely gone (no card, no ghost)
 - [ ] `go test ./...` passes (no backend changes)
-- [ ] `npx playwright test` passes (existing tests)
+- [ ] `npx playwright test` passes (update e2e if needed)
