@@ -51,7 +51,7 @@ function OracleListSkeleton() {
 }
 
 // ─ Wisdom Wheel ────────────────────────────────
-function WisdomWheel({ data }: { data: GlobalFavorite[] }) {
+function WisdomWheelList({ data }: { data: GlobalFavorite[] }) {
   return (
     <section>
       <h2 className="text-xl font-bold text-zinc-100 mb-5 flex items-center gap-2">
@@ -229,7 +229,7 @@ export default function PulseDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
         {/* Left: Wisdom Wheel */}
         <div className="lg:col-span-7">
-          {loadingWheel ? <WheelSkeleton /> : <WisdomWheel data={leaderboard} />}
+          {loadingWheel ? <WheelSkeleton /> : <WisdomWheelList data={leaderboard} />}
         </div>
 
         {/* Right: Match Oracle */}
