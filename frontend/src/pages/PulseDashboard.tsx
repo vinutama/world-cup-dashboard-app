@@ -54,19 +54,14 @@ function WisdomWheelList({ data }: { data: GlobalFavorite[] }) {
                 <span className="text-sm font-semibold text-zinc-200 truncate group-hover:text-white transition-colors">
                   {fav.team}
                 </span>
+                <span className="text-xs font-bold text-cyan-400 tabular-nums ml-2">
+                  {fav.probability}%
+                </span>
               </div>
               <div className="w-full h-2 bg-zinc-800/80 rounded-full overflow-hidden p-[1px]">
-                <div
-                  className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 rounded-full shadow-[0_0_12px_rgba(6,182,212,0.8)] transition-all duration-1000 ease-out"
-                  style={{ width: `${fav.probability}%` }}
-                />
+                <div className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 rounded-full shadow-[0_0_12px_rgba(6,182,212,0.8)] w-full" />
               </div>
             </div>
-
-            {/* Probability */}
-            <span className="text-sm font-bold text-cyan-400 tabular-nums w-10 text-right">
-              {fav.probability}%
-            </span>
           </div>
         ))}
       </div>
