@@ -330,7 +330,7 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 # PHASE 16: PULSE ORACLE UI ENHANCEMENT (Wheel + Polish)
 
 ## 🎯 Objective
-Upgrade the Pulse Oracle page with a **spinning wheel component** for the top 10 nations below the title, remove the Match Oracle section entirely, and make the Wisdom Wheel inline list full-width.
+Upgrade the Pulse Oracle page with a **spinning wheel component** for the top 10 nations below the title, remove the Match Oracle section, and keep the half-width layout ready for a continent list on the right.
 
 ---
 
@@ -348,7 +348,7 @@ Upgrade the Pulse Oracle page with a **spinning wheel component** for the top 10
 ### 16.2 Integrate Wheel into Pulse Oracle (`frontend/src/pages/PulseDashboard.tsx`)
 * [ ] Import `WisdomWheel` in `PulseDashboard.tsx`
 * [ ] Render `<WisdomWheel>` **right below the "Pulse Oracle" title**, before the grid
-* [ ] Keep the existing inline Wisdom Wheel list in the grid (full-width now — no Match Oracle column)
+* [ ] Keep the Wisdom Wheel inline list in the **left column** (`lg:col-span-7`) — unchanged from current layout
 
 ### 16.3 Remove Match Oracle Section
 * [ ] Delete the `MatchOracleList` function component entirely
@@ -356,22 +356,16 @@ Upgrade the Pulse Oracle page with a **spinning wheel component** for the top 10
 * [ ] Remove the Match Oracle fetch call from `useEffect`
 * [ ] Remove the `oracle` and `loadingOracle` state variables
 * [ ] Remove the imports for `UpcomingMatch` type (no longer used)
-* [ ] The grid becomes single-column with only the Wisdom Wheel inline list
+* [ ] Keep the **right column empty** as a placeholder (`lg:col-span-5`) — ready for continent list later
 
-### 16.4 Wisdom Wheel Inline List → Full Width
-* [ ] Change the Wisdom Wheel grid column span from `lg:col-span-7` to full width `lg:col-span-12`
-* [ ] Remove the right column (Match Oracle) entirely — delete `lg:col-span-5` div
-* [ ] Simplify the grid to a single column wrapper
-* [ ] Keep all existing card styling, animations, and neon bars unchanged
-
-### 16.5 Full-Width Progress Bars in Wisdom Wheel
+### 16.4 Full-Width Progress Bars in Wisdom Wheel Inline List
 * [ ] Change progress bar widths from proportional (`fav.probability%`) to **full width (100%)**
 * [ ] Keep the neon gradient styling (cyan→blue→indigo) as a decorative full bar
 * [ ] Display probability percentage as text overlay or next to the bar
 
-### 16.6 Testing
-* [ ] Verify Pulse Oracle page loads with spinning wheel + full-width list
+### 16.5 Testing
+* [ ] Verify Pulse Oracle page loads with spinning wheel + half-width wisdom list + empty right column
 * [ ] Confirm flag icons render from flagsapi.com
-* [ ] Confirm Match Oracle is completely gone (no card, no ghost div)
+* [ ] Confirm Match Oracle is completely gone (no card, no ghost)
 * [ ] All existing Go tests pass (backend unchanged)
-* [ ] All existing Playwright tests pass (update if needed)
+* [ ] All existing Playwright tests pass

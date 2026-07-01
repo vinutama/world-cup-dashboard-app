@@ -303,20 +303,15 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [ ] Remove the Match Oracle fetch call from `useEffect`
 - [ ] Remove the `oracle` and `loadingOracle` state variables
 - [ ] Remove `UpcomingMatch` type import (no longer used)
-- [ ] Grid becomes single-column — only Wisdom Wheel inline list remains
+- [ ] Keep the **right column empty** as a placeholder (`lg:col-span-5`) — ready for continent list later
 
-### 16.4 Wisdom Wheel Inline List → Full Width
-- [ ] Change `lg:col-span-7` to `lg:col-span-12`
-- [ ] Delete the right column div (Match Oracle)
-- [ ] Simplify grid to single column
-
-### 16.5 Full-Width Progress Bars in Wisdom Wheel
+### 16.4 Full-Width Progress Bars in Wisdom Wheel Inline List
 - [ ] Change bar widths from proportional (`fav.probability%`) to full width (100%)
 - [ ] Keep neon gradient styling as decorative full bar
 - [ ] Show probability percentage as text next to the bar
 
-### 16.6 Testing
-- [ ] Verify Pulse Oracle loads with spinning wheel + full-width list
+### 16.5 Testing
+- [ ] Verify Pulse Oracle loads with spinning wheel + half-width list + empty right column
 - [ ] Confirm Match Oracle section is completely gone (no card, no ghost)
 - [ ] `go test ./...` passes (no backend changes)
-- [ ] `npx playwright test` passes (update e2e if needed)
+- [ ] `npx playwright test` passes
