@@ -280,15 +280,15 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 ## Phase 16: Pulse Oracle UI Enhancement (Wheel + Polish)
 
 ### 16.1 Wisdom Wheel Component (`frontend/src/components/WisdomWheel.tsx`)
-- [ ] Create standalone `WisdomWheel.tsx` component in `src/components/`
-- [ ] Accept data prop (GlobalFavorite[] — from parent PulseDashboard)
-- [ ] Implement **circular wheel layout** with 10 segments arranged via CSS transform rotate/translate
-- [ ] Each segment shows: flag (`https://flagsapi.com/{CODE}/flat/48.png`) + team name + probability %
-- [ ] Team→country code mapping (same as Standings: France→fr, Brazil→br, etc.)
-- [ ] **Slow spin animation**: CSS `@keyframes spin` with 45s full rotation
-- [ ] **Pause on hover**: `animation-play-state: paused`
-- [ ] Segments rotate into view — user can read each one as it passes
-- [ ] Loading skeleton: pulsing circle placeholder
+- [x] Create standalone `WisdomWheel.tsx` component in `src/components/`
+- [x] Accept data prop (GlobalFavorite[] — from parent PulseDashboard)
+- [x] Implement **circular wheel layout** with 10 segments arranged via CSS transform rotate/translate
+- [x] Each segment shows: flag (`https://flagsapi.com/{CODE}/flat/48.png`) + team name + probability %
+- [x] Team→country code mapping (same as Standings: France→fr, Brazil→br, etc.)
+- [x] **Slow spin animation**: CSS `@keyframes spin-slow` with 45s full rotation
+- [x] **Pause on hover**: `animation-play-state: paused`
+- [x] Segments rotate into view — user can read each one as it passes
+- [x] Loading skeleton: pulsing circle placeholder
 
 ### 16.2 Integrate Wheel into Pulse Oracle
 - [ ] Import `WisdomWheel` in `PulseDashboard.tsx`
