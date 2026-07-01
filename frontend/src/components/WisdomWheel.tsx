@@ -1,27 +1,29 @@
 import type { GlobalFavorite } from '../types/oracle';
 
-// ─ Team → Flag Code ────────────────────────────
-const teamFlagMap: Record<string, string> = {
-  Argentina: 'ar', Australia: 'au', Austria: 'at', Belgium: 'be',
-  'Bosnia and Herzegovina': 'ba', Brazil: 'br', Canada: 'ca',
-  'Cabo Verde': 'cv', Colombia: 'co', "Côte d'Ivoire": 'ci',
-  Croatia: 'hr', 'DR Congo': 'cd', Ecuador: 'ec', Egypt: 'eg',
-  England: 'gb-eng', France: 'fr', Germany: 'de', Ghana: 'gh',
-  Japan: 'jp', Mexico: 'mx', Morocco: 'ma', Netherlands: 'nl',
-  Norway: 'no', Paraguay: 'py', Portugal: 'pt', Senegal: 'sn',
-  'South Africa': 'za', Spain: 'es', Sweden: 'se', Switzerland: 'ch',
-  USA: 'us', Wales: 'gb-wls', Uruguay: 'uy',
-  'South Korea': 'kr', 'Korea Republic': 'kr', 'Saudi Arabia': 'sa',
-  Iran: 'ir', Denmark: 'dk', Poland: 'pl', Serbia: 'rs',
-  Cameroon: 'cm', 'Costa Rica': 'cr', Tunisia: 'tn',
-  Algeria: 'dz', Nigeria: 'ng', Turkey: 'tr', Hungary: 'hu',
-  Scotland: 'gb-sct', Ireland: 'ie', Russia: 'ru', Ukraine: 'ua',
-  Mali: 'ml', Zambia: 'zm',
+// ─ Team → ISO 3166-1 alpha-3 Code ─────────────
+const teamCodeMap: Record<string, string> = {
+  Argentina: 'ARG', Australia: 'AUS', Austria: 'AUT', Belgium: 'BEL',
+  'Bosnia and Herzegovina': 'BIH', Brazil: 'BRA', Canada: 'CAN',
+  'Cabo Verde': 'CPV', Colombia: 'COL', "Côte d'Ivoire": 'CIV',
+  Croatia: 'HRV', 'DR Congo': 'COD', Denmark: 'DNK', Ecuador: 'ECU',
+  Egypt: 'EGY', England: 'ENG', France: 'FRA', Germany: 'DEU',
+  Ghana: 'GHA', Japan: 'JPN', Mexico: 'MEX', Morocco: 'MAR',
+  Netherlands: 'NLD', Nigeria: 'NGA', Norway: 'NOR', Paraguay: 'PRY',
+  Poland: 'POL', Portugal: 'PRT', Senegal: 'SEN', Serbia: 'SRB',
+  'South Africa': 'ZAF', Spain: 'ESP', Sweden: 'SWE', Switzerland: 'CHE',
+  USA: 'USA', Wales: 'WAL', Uruguay: 'URY',
+  'South Korea': 'KOR', 'Korea Republic': 'KOR', 'Saudi Arabia': 'SAU',
+  Iran: 'IRN', Tunisia: 'TUN', Algeria: 'DZA', Nigeria: 'NGA',
+  Turkey: 'TUR', Hungary: 'HUN', Cameroon: 'CMR', 'Costa Rica': 'CRI',
+  Scotland: 'SCO', Ireland: 'IRL', Russia: 'RUS', Ukraine: 'UKR',
+  Mali: 'MLI', Zambia: 'ZMB', 'Czech Republic': 'CZE', Greece: 'GRC',
+  Romania: 'ROU', Slovakia: 'SVK', Slovenia: 'SVN', Iceland: 'ISL',
+  Bulgaria: 'BGR',
 };
 
 function flagUrl(team: string): string {
-  const code = teamFlagMap[team] || team.slice(0, 2).toLowerCase();
-  return `https://flagsapi.com/${code.toUpperCase()}/flat/48.png`;
+  const code = teamCodeMap[team] || team.slice(0, 3).toUpperCase();
+  return `https://polymarket-upload.s3.us-east-2.amazonaws.com/country-flags/${code.toLowerCase()}.png`;
 }
 
 // ─ Props ────────────────────────────────────────
@@ -32,8 +34,8 @@ interface WisdomWheelProps {
 // ─ Skeleton ─────────────────────────────────────
 export function WisdomWheelSkeleton() {
   return (
-    <div className="flex items-center justify-center py-12">
-      <div className="w-[320px] h-[320px] rounded-full bg-zinc-900/40 border border-zinc-800 animate-pulse" />
+    <div className="flex items-center justify-center py-10">
+      <div className="w-[300px] h-[300px] rounded-full bg-zinc-900/40 border border-zinc-800 animate-pulse" />
     </div>
   );
 }
@@ -48,7 +50,7 @@ function Segment({
   probability: number;
   angle: number;
 }) {
-  const RADIUS = 140;
+  const RADIUS = 130;
   return (
     <div
       className="absolute left-1/2 top-1/2"
@@ -56,16 +58,18 @@ function Segment({
         transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-${RADIUS}px)`,
       }}
     >
-      <div className="flex items-center gap-1.5 bg-zinc-900/80 backdrop-blur-md border border-zinc-700/50 rounded-full px-2.5 py-1.5 transition-all duration-300 hover:border-cyan-500/60 hover:bg-zinc-800/80 hover:shadow-[0_0_14px_rgba(6,182,212,0.2)] whitespace-nowrap">
+      <div
+        className="flex items-center gap-1 transition-all duration-300 hover:scale-110"
+        style={{ transform: `rotate(-${angle}deg)` }}
+      >
         <img
           src={flagUrl(team)}
           alt={team}
-          className="w-5 h-4 rounded-sm object-cover shrink-0"
+          className="w-7 h-5 rounded-sm object-cover shrink-0 shadow-[0_0_6px_rgba(0,0,0,0.5)]"
           loading="lazy"
         />
-        <span className="text-xs font-semibold text-zinc-200">{team}</span>
-        <span className="text-xs font-bold text-cyan-400 tabular-nums">
-          {probability}%
+        <span className="text-[11px] font-bold text-cyan-300 tabular-nums drop-shadow-[0_0_4px_rgba(6,182,212,0.4)]">
+          {probability}
         </span>
       </div>
     </div>
@@ -81,10 +85,10 @@ export default function WisdomWheel({ data }: WisdomWheelProps) {
 
   return (
     <div className="flex items-center justify-center py-8 overflow-hidden">
-      <div className="relative w-[340px] h-[340px] group">
+      <div className="relative w-[320px] h-[320px] group">
         {/* Rotating ring */}
         <div className="absolute inset-0 animate-spin-slow group-hover:[animation-play-state:paused]">
-          {/* Decorative outer ring glow */}
+          {/* Outer ring glow */}
           <div className="absolute inset-0 rounded-full border border-cyan-500/10 shadow-[0_0_40px_rgba(6,182,212,0.06)]" />
 
           {items.map((item, i) => (
@@ -97,9 +101,9 @@ export default function WisdomWheel({ data }: WisdomWheelProps) {
           ))}
         </div>
 
-        {/* Center hub — fixed, non-rotating */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 shadow-[0_0_24px_rgba(6,182,212,0.35)] z-10 flex items-center justify-center">
-          <span className="text-white font-black text-sm tracking-tight">
+        {/* Center hub */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 shadow-[0_0_24px_rgba(6,182,212,0.35)] z-10 flex items-center justify-center">
+          <span className="text-white font-black text-xs tracking-tight">
             ⚽
           </span>
         </div>
