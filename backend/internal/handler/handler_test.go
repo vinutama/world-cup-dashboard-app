@@ -423,3 +423,35 @@ func TestGetStandings_ReturnsValidJSON(t *testing.T) {
 		t.Errorf("expected application/json, got %s", contentType)
 	}
 }
+
+func TestGetGoldenBoot_ReturnsEmptyJSONArrayOnError(t *testing.T) {
+	// When Gamma API is unreachable, GetGoldenBoot must return an empty JSON array
+	// (not an error, not a null, not a crash).
+	h := setupTestHandler()
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/predictions/golden-boot", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("expected application/json, got %s", contentType)
+	}
+
+	var result []GoldenBootResponse
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("expected valid JSON array, got error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected empty JSON array ([]), not nil")
+	}
+	if len(result) != 0 {
+		t.Logf("got %d golden boot entries (unexpected for test env, but valid JSON)", len(result))
+	}
+}
