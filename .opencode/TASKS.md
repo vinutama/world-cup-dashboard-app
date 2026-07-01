@@ -291,11 +291,10 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [x] Loading skeleton: pulsing circle placeholder
 
 ### 16.2 Integrate Wheel into Pulse Oracle
-- [ ] Import `WisdomWheel` in `PulseDashboard.tsx`
-- [ ] Render `<WisdomWheel>` right below the "Pulse Oracle" title, before the grid
-- [ ] Keep the existing inline Wisdom Wheel list unchanged (still renders in the left viewport)
-- [ ] Keep the existing Match Oracle section unchanged (right viewport)
-- [ ] Wheel sits full-width, centered, responsive
+- [x] Import `WisdomWheel` in `PulseDashboard.tsx`
+- [x] Render `<WisdomWheel>` right below the "Pulse Oracle" title, before the grid
+- [x] Keep the Wisdom Wheel inline list in the **left column** (`lg:col-span-7`) — unchanged from current layout
+- [x] Wheel sits full-width, centered, responsive (handled by the component itself)
 
 ### 16.3 Remove Match Oracle Section
 - [ ] Delete the `MatchOracleList` function component entirely
