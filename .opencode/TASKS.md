@@ -292,10 +292,10 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 
 ### 16.2 Integrate Wheel into Pulse Oracle
 - [ ] Import `WisdomWheel` in `PulseDashboard.tsx`
-- [ ] Replace current inline Wisdom Wheel list with `<WisdomWheel data={leaderboard} />`
-- [ ] Keep header "Wisdom Wheel" with ◈ icon
-- [ ] Keep left viewport position (lg:col-span-7)
-- [ ] Ensure responsive: full width on mobile, left column on desktop
+- [ ] Render `<WisdomWheel>` right below the "Pulse Oracle" title, before the grid
+- [ ] Keep the existing inline Wisdom Wheel list unchanged (still renders in the left viewport)
+- [ ] Keep the existing Match Oracle section unchanged (right viewport)
+- [ ] Wheel sits full-width, centered, responsive
 
 ### 16.3 Remove Match Oracle Empty-State Card
 - [ ] In `MatchOracleList`, remove the "No upcoming match predictions available" empty-state block

@@ -346,10 +346,11 @@ Upgrade the Pulse Oracle page with a **spinning wheel component** for the top 10
 * [ ] Loading skeleton state for the wheel (pulsing circle)
 
 ### 16.2 Integrate Wheel into Pulse Oracle (`frontend/src/pages/PulseDashboard.tsx`)
-* [ ] Replace the current Wisdom Wheel list with the new spinning wheel component
-* [ ] Position in the left viewport (lg:col-span-7)
-* [ ] Keep the existing "Wisdom Wheel" header and styling
-* [ ] Ensure responsive: stack vertically on mobile
+* [ ] Import `WisdomWheel` in `PulseDashboard.tsx`
+* [ ] Render `<WisdomWheel>` **right below the "Pulse Oracle" title**, before the grid layout
+* [ ] Keep the existing inline Wisdom Wheel list unchanged (still renders in the left viewport)
+* [ ] Keep the existing Match Oracle section unchanged (right viewport)
+* [ ] Ensure wheel is full-width, centered, responsive
 
 ### 16.3 Remove Match Oracle Empty-State Card
 * [ ] Remove the "No upcoming match predictions available" empty-state fallback card
