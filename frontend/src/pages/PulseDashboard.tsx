@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { GlobalFavorite, UpcomingMatch } from '../types/oracle';
+import type { GlobalFavorite } from '../types/oracle';
 import WisdomWheel, { WisdomWheelSkeleton } from '../components/WisdomWheel';
 
 // ─ Helpers ─────────────────────────────────────
@@ -9,12 +9,6 @@ const rankColor = (i: number) => {
   if (i === 2) return 'bg-gradient-to-br from-amber-600 to-orange-800 bg-clip-text text-transparent font-black';
   return 'text-zinc-400 font-semibold';
 };
-
-function formatDate(iso: string) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
 
 // ─ Skeletons ───────────────────────────────────
 function WheelSkeleton() {
@@ -28,22 +22,6 @@ function WheelSkeleton() {
             <div className="flex-1 h-2 bg-zinc-800 rounded-full" />
           </div>
           <div className="h-4 w-8 bg-zinc-800 rounded" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function OracleListSkeleton() {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-xl p-4 animate-pulse">
-          <div className="flex-1 space-y-2">
-            <div className="h-4 w-40 bg-zinc-800 rounded" />
-            <div className="h-3 w-24 bg-zinc-800 rounded" />
-          </div>
-          <div className="h-5 w-16 bg-zinc-800 rounded" />
         </div>
       ))}
     </div>
@@ -96,86 +74,10 @@ function WisdomWheelList({ data }: { data: GlobalFavorite[] }) {
   );
 }
 
-// ─ Match Oracle ────────────────────────────────
-function MatchOracleList({ data, loading }: { data: UpcomingMatch[] | null; loading: boolean }) {
-  if (loading) return <OracleListSkeleton />;
-  if (!data || data.length === 0) {
-    return (
-      <div className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-6 rounded-2xl text-center text-zinc-500 text-sm">
-        No upcoming match predictions available.
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 p-6 rounded-2xl overflow-hidden shadow-2xl group hover:border-emerald-500/30 transition-all duration-300">
-      {/* Cyber Scanner accent line */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse" />
-
-      <h2 className="text-xl font-bold text-zinc-100 mb-5 flex items-center gap-2">
-        <span className="text-emerald-400">◈</span> Match Oracle
-        <span className="text-xs text-zinc-500 font-normal ml-auto">Next 10 Matches</span>
-      </h2>
-
-      <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
-        {data.map((m, i) => (
-          <div
-            key={`${m.match}-${i}`}
-            className="flex items-center gap-3 bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-3.5 transition-all duration-200 hover:border-emerald-500/40 hover:bg-zinc-700/40"
-          >
-            {/* Rank + match info */}
-            <span className="text-xs font-bold text-zinc-500 w-5 shrink-0">{i + 1}</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-zinc-200 truncate">
-                {m.match}
-              </div>
-              <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
-                <span>{formatDate(m.endDate)}</span>
-                {m.venue && (
-                  <>
-                    <span className="text-zinc-700">·</span>
-                    <span className="truncate">{m.venue}</span>
-                  </>
-                )}
-              </div>
-              <div className="text-[10px] text-zinc-600 mt-0.5 truncate">
-                {m.source}
-              </div>
-            </div>
-            {/* 3-way odds pills */}
-            <div className="flex items-center gap-1 shrink-0">
-              <div className="text-center">
-                <div className="text-[10px] uppercase tracking-wider text-zinc-600 mb-0.5">Home</div>
-                <span className="block text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md text-center">
-                  {m.percentHome}%
-                </span>
-              </div>
-              <div className="text-center">
-                <div className="text-[10px] uppercase tracking-wider text-zinc-600 mb-0.5">Draw</div>
-                <span className="block text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md text-center">
-                  {m.percentDraw}%
-                </span>
-              </div>
-              <div className="text-center">
-                <div className="text-[10px] uppercase tracking-wider text-zinc-600 mb-0.5">Away</div>
-                <span className="block text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md text-center">
-                  {m.percentAway}%
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─ PulseDashboard ──────────────────────────────
 export default function PulseDashboard() {
   const [leaderboard, setLeaderboard] = useState<GlobalFavorite[]>([]);
-  const [oracle, setOracle] = useState<UpcomingMatch[] | null>(null);
   const [loadingWheel, setLoadingWheel] = useState(true);
-  const [loadingOracle, setLoadingOracle] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -190,15 +92,6 @@ export default function PulseDashboard() {
         setError(`Failed to load leaderboard: ${e}`);
         setLoadingWheel(false);
       });
-
-    // Fetch Match Oracle — returns array of 10 upcoming matches
-    fetch('/api/v1/predictions/match/next')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: UpcomingMatch[] | null) => {
-        setOracle(data);
-        setLoadingOracle(false);
-      })
-      .catch(() => setLoadingOracle(false));
   }, []);
 
   return (
@@ -232,10 +125,8 @@ export default function PulseDashboard() {
           {loadingWheel ? <WheelSkeleton /> : <WisdomWheelList data={leaderboard} />}
         </div>
 
-        {/* Right: Match Oracle */}
-        <div className="lg:col-span-5">
-          <MatchOracleList data={oracle} loading={loadingOracle} />
-        </div>
+        {/* Right: placeholder — continent list later */}
+        <div className="lg:col-span-5" />
       </div>
     </div>
   );
