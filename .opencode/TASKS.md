@@ -274,3 +274,43 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [ ] `go test ./...` passes
 - [ ] `npx playwright test` passes
 - [ ] `docker compose build` + verification
+
+---
+
+## Phase 16: Pulse Oracle UI Enhancement (Wheel + Polish)
+
+### 16.1 Wisdom Wheel Component (`frontend/src/components/WisdomWheel.tsx`)
+- [ ] Create standalone `WisdomWheel.tsx` component in `src/components/`
+- [ ] Accept data prop (GlobalFavorite[] — from parent PulseDashboard)
+- [ ] Implement **circular wheel layout** with 10 segments arranged via CSS transform rotate/translate
+- [ ] Each segment shows: flag (`https://flagsapi.com/{CODE}/flat/48.png`) + team name + probability %
+- [ ] Team→country code mapping (same as Standings: France→fr, Brazil→br, etc.)
+- [ ] **Slow spin animation**: CSS `@keyframes spin` with 45s full rotation
+- [ ] **Pause on hover**: `animation-play-state: paused`
+- [ ] Segments rotate into view — user can read each one as it passes
+- [ ] Loading skeleton: pulsing circle placeholder
+
+### 16.2 Integrate Wheel into Pulse Oracle
+- [ ] Import `WisdomWheel` in `PulseDashboard.tsx`
+- [ ] Replace current inline Wisdom Wheel list with `<WisdomWheel data={leaderboard} />`
+- [ ] Keep header "Wisdom Wheel" with ◈ icon
+- [ ] Keep left viewport position (lg:col-span-7)
+- [ ] Ensure responsive: full width on mobile, left column on desktop
+
+### 16.3 Remove Match Oracle Empty-State Card
+- [ ] In `MatchOracleList`, remove the "No upcoming match predictions available" empty-state block
+- [ ] When `data` is null or empty array, render `null` (nothing)
+- [ ] Still show `OracleListSkeleton` during `loading=true`
+
+### 16.4 Full-Width Progress Bars
+- [ ] In the fallback list view (accessible to screen readers / if wheel can't render), change bar widths to full (100%)
+- [ ] Keep the neon gradient fill as decorative background
+- [ ] Display probability percentage as text value next to/over the bar
+- [ ] Ensure the wheel segments also show full decorative arcs
+
+### 16.5 Testing
+- [ ] Verify Pulse Oracle page loads without errors
+- [ ] Confirm wheel renders with 10 segments + flags
+- [ ] Confirm Match Oracle section is blank (no card) when API returns null
+- [ ] `go test ./...` passes (no backend changes)
+- [ ] `npx playwright test` passes (existing tests)

@@ -324,3 +324,47 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 * [ ] `go test ./...` passes
 * [ ] `npx playwright test` passes
 * [ ] `docker compose build` + verification
+
+---
+
+# PHASE 16: PULSE ORACLE UI ENHANCEMENT (Wheel + Polish)
+
+## 🎯 Objective
+Upgrade the Pulse Oracle page with a **spinning wheel component** for the top 10 nations, remove the empty-state card for Match Oracle, and make the Wisdom Wheel progress bars full-width for a cleaner, more impactful visual.
+
+---
+
+### 16.1 Wisdom Wheel Component (`frontend/src/components/WisdomWheel.tsx`)
+* [ ] Create a standalone `WisdomWheel.tsx` component
+* [ ] Data source: `/api/v1/predictions/global` (same endpoint, unchanged)
+* [ ] Fetch flag icons from `https://flagsapi.com/{CODE}/flat/48.png` (team→country code mapping from Standings)
+* [ ] Design a **circular wheel layout** with 10 segments (one per nation)
+* [ ] Each segment displays: flag icon + team name + probability percentage
+* [ ] **Slow spinning animation** via CSS transform rotate — continuous, subtle rotation (e.g. 30s–60s per full rev)
+* [ ] Pause on hover (so users can read a segment)
+* [ ] Fallback: static list if wheel can't render (accessibility)
+* [ ] Loading skeleton state for the wheel (pulsing circle)
+
+### 16.2 Integrate Wheel into Pulse Oracle (`frontend/src/pages/PulseDashboard.tsx`)
+* [ ] Replace the current Wisdom Wheel list with the new spinning wheel component
+* [ ] Position in the left viewport (lg:col-span-7)
+* [ ] Keep the existing "Wisdom Wheel" header and styling
+* [ ] Ensure responsive: stack vertically on mobile
+
+### 16.3 Remove Match Oracle Empty-State Card
+* [ ] Remove the "No upcoming match predictions available" empty-state fallback card
+* [ ] When Match Oracle returns null/empty data, render nothing or a minimal placeholder (no card/no UI)
+* [ ] Still show loading skeleton during fetch
+
+### 16.4 Full-Width Progress Bars in Wisdom Wheel
+* [ ] Change progress bar widths from proportional (`fav.probability%`) to **full width (100%)**
+* [ ] Keep the neon gradient styling (cyan→blue→indigo) as a decorative full bar
+* [ ] Display probability percentage as text overlay or next to the bar
+* [ ] Apply to both the wheel tooltip/hover detail and any fallback list view
+
+### 16.5 Testing
+* [ ] Verify Pulse Oracle page loads with spinning wheel
+* [ ] Confirm flag icons render from flagsapi.com
+* [ ] Confirm Match Oracle section shows no card when data is empty
+* [ ] All existing Go tests pass (backend unchanged)
+* [ ] All existing Playwright tests pass
