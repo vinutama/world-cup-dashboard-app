@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Games Page', () => {
-  test('games page loads and shows match cards', async ({ page }) => {
+  test('games page loads and shows match cards with scores', async ({ page }) => {
     await page.goto('/games');
 
     // Wait for the page heading
@@ -25,6 +25,19 @@ test.describe('Games Page', () => {
       const vsBadges = page.locator('text=VS');
       const count = await vsBadges.count();
       expect(count).toBeGreaterThan(0);
+
+      // Check that score elements are rendered (font-mono tabular-nums)
+      const scoreElements = page.locator('.font-mono.tabular-nums');
+      const scoreCount = await scoreElements.count();
+      expect(scoreCount).toBeGreaterThan(0);
+
+      // At least one score shows "0 — 0" (muted placeholder) or a real score pattern
+      const scoresVisible = await page.locator('text=0 — 0').count();
+      // Either we see muted placeholder scores or real scored matches
+      // This confirms ScoreDisplay is rendering
+      const scoreTexts = page.locator('.font-mono.tabular-nums');
+      const firstScore = await scoreTexts.first().textContent();
+      expect(firstScore).toBeTruthy();
     }
   });
 

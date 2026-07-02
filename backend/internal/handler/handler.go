@@ -1091,6 +1091,26 @@ func (h *Handler) fetchGammaMatchSlugs(ctx context.Context) ([]string, error) {
 // fetchGammaGame fetches odds for a single match slug from events/slug/{slug}.
 // The response is a single event object (not array) containing binary markets
 // for each possible outcome (Team A win, Team B win, Draw).
+// parseScoreString splits a score string like \"2-1\" into home and away goal ints.
+// Returns 0, 0 if the string is empty or unparseable.
+func parseScoreString(score string) (int, int) {
+	if score == "" {
+		return 0, 0
+	}
+	parts := strings.SplitN(score, "-", 2)
+	if len(parts) != 2 {
+		return 0, 0
+	}
+	var s1, s2 int
+	if v, err := strconv.Atoi(parts[0]); err == nil {
+		s1 = v
+	}
+	if v, err := strconv.Atoi(parts[1]); err == nil {
+		s2 = v
+	}
+	return s1, s2
+}
+
 func (h *Handler) fetchGammaGame(ctx context.Context, slug string) (*GameResponse, error) {
 	endpoint := fmt.Sprintf("https://gamma-api.polymarket.com/events/slug/%s", slug)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
@@ -1182,19 +1202,8 @@ func (h *Handler) fetchGammaGame(ctx context.Context, slug string) (*GameRespons
 		totalVol += parseVolume(m.Volume)
 	}
 
-	// Parse score string ("2-1") into Score1 and Score2 ints
-	var score1, score2 int
-	if event.Score != "" {
-		parts := strings.SplitN(event.Score, "-", 2)
-		if len(parts) == 2 {
-			if v, err := strconv.Atoi(parts[0]); err == nil {
-				score1 = v
-			}
-			if v, err := strconv.Atoi(parts[1]); err == nil {
-				score2 = v
-			}
-		}
-	}
+	// Parse score string ("2-1") into Score1 and Score2 ints using helper
+	score1, score2 := parseScoreString(event.Score)
 
 	game := &GameResponse{
 		Slug:        slug,
