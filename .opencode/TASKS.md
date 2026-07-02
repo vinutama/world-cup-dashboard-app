@@ -243,34 +243,34 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 ### Tasks
 
 #### 15.1 Backend: Continent endpoint (`GET /api/v1/predictions/continent`)
-- [ ] New handler `GetContinentPredictions(w, r)` at `GET /api/v1/predictions/continent`
-- [ ] Fetch `https://gamma-api.polymarket.com/events?slug=which-continent-will-win-the-world-cup&closed=false`
-- [ ] Parse `markets` array; for each market:
+- [x] New handler `GetContinentPredictions(w, r)` at `GET /api/v1/predictions/continent`
+- [x] Fetch `https://gamma-api.polymarket.com/events?slug=which-continent-will-win-the-world-cup&closed=false`
+- [x] Parse `markets` array; for each market:
   - Extract continent name from question text (`"Will North America (CONCACAF) win..."`)
   - Extract Yes-probability from `outcomePrices[0]`
   - Clean confederation codes to display names: UEFA→Europe, CONMEBOL→South America, CONCACAF→North America, CAF→Africa, OCF→Oceania, AFC→Asia
-- [ ] Sort descending by probability
-- [ ] Filter out "another continent" market (0% placeholder)
-- [ ] Use existing `priceToPercent` helper
-- [ ] In-memory cache with 60s TTL
-- [ ] Return JSON: `[{ "continent": "Europe", "label": "Europe (UEFA)", "probability": 61 }, ...]`
-- [ ] Returns `[]` on error — no fallback
+- [x] Sort descending by probability
+- [x] Filter out "another continent" market (0% placeholder)
+- [x] Use existing `priceToPercent` helper
+- [x] In-memory cache with 60s TTL
+- [x] Return JSON: `[{ "continent": "Europe", "label": "Europe (UEFA)", "probability": 61 }, ...]`
+- [x] Returns `[]` on error — no fallback
 
-#### 15.2 Frontend: Continent page
-- [ ] Create `src/pages/Continent.tsx`
+#### 15.2 Frontend: Top Continent List component integrated into Pulse Oracle
+- [ ] Create `src/components/TopContinentList.tsx`
 - [ ] Fetch `/api/v1/predictions/continent` on mount
 - [ ] Continent cards with:
-  - Emoji flag/icon (🌍 Europe, 🌎 Americas, 🌍 Africa, 🌏 Asia, 🌊 Oceania)
+  - Continent emoji/icon (🌍 Europe, 🌎 Americas, 🌍 Africa, 🌏 Asia, 🌊 Oceania)
   - Continent name + confederation label
   - Percentage (large tabular-nums)
-  - Neon progress bar (glassmorphic style)
-- [ ] Loading skeleton + empty/error state
-- [ ] Register `/continent` route in `App.tsx`
+  - Neon progress bar (glassmorphic — same design as Wisdom Wheel list)
+- [ ] Loading skeleton + error state
+- [ ] **Import into `PulseDashboard.tsx`** — render inside the right column (`<div className="lg:col-span-5">`)
+- [ ] No standalone route or nav item — lives inside Pulse Oracle
 
-#### 15.3 Navigation & Testing
-- [ ] Add "Continent" nav item to `Layout.tsx`
+#### 15.3 Testing
 - [ ] Add unit test `TestGetContinentPredictions` — verify handler returns valid JSON array
-- [ ] Create `e2e/continent.spec.ts` — page loads, nav click works, data renders
+- [ ] Update `e2e/pulse-oracle.spec.ts` — verify continent list renders in right column when data loads
 - [ ] `go test ./...` passes
 - [ ] `npx playwright test` passes
 - [ ] `docker compose build` + verification
@@ -314,3 +314,158 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [x] Confirm Match Oracle section is completely gone (no card, no ghost)
 - [x] `go test ./...` passes (no backend changes)
 - [x] `npx playwright test` passes — 5 new E2E tests added for Pulse Oracle
+
+---
+
+## Phase 17: Live Scores on Match Cards
+
+### Overview
+Enhance the Games page at `/games` to display **live scores** from the gamma API event response itself. The event object includes `score`, `live`, `ended`, `period`, and `elapsed` fields for matches that have started/completed. Upcoming matches have none of these fields.
+
+**Data model from gamma API:**
+```json
+// Completed: "score":"2-0","live":false,"ended":true,"period":"VFT","elapsed":""
+// Live:     "score":"1-0","live":true,"ended":false,"period":"2H","elapsed":"67"
+// Upcoming: no score/live/ended fields present
+```
+
+### Tasks
+
+#### 17.1 Backend: Parse live scores from gamma API event
+- [ ] Add score fields to `GameResponse`:
+  - `Score string` — raw `"2-0"` from gamma, `""` if not started
+  - `Score1 int` — home goals (parsed from Score)
+  - `Score2 int` — away goals
+  - `Live bool` — match in progress
+  - `Ended bool` — match complete
+  - `Period string` — `"1H"`, `"2H"`, `"VFT"`, etc.
+  - `Elapsed string` — minutes elapsed
+- [ ] Expand the gamma API event JSON struct in `fetchGammaGame` to decode these new fields
+- [ ] Parse `score` → `Score1`/`Score2` ints (split on `-`)
+- [ ] Upcoming: no `score` field → `Score=""`, `Live=false`, `Ended=false`
+- [ ] Cache is already 60s TTL — scores freshen naturally
+
+#### 17.2 Frontend: Display scores on match cards
+- [ ] Add score fields to `GameItem`:
+  - `score: string` / `score1: number` / `score2: number` / `live: boolean` / `ended: boolean`
+- [ ] Update `MatchCard` in `src/pages/Games.tsx`:
+  - [ ] Show score between team names: `{team1}  {score1} — {score2}  {team2}`
+  - [ ] Not started (`score=""`): muted `0 — 0` in zinc-500
+  - [ ] In progress (`live=true`): live score with subtle pulse animation
+  - [ ] Ended (`ended=true`): final score, green glow on winner
+- [ ] Style: neon `text-cyan-300` `font-mono tabular-nums`, larger digits
+- [ ] **Auto-refetch every 5 min** — `setInterval(300000)` in a `useEffect`, calls `fetchGames()` silently, clears on unmount
+- [ ] Keep existing odds display, badges, layout unchanged
+
+#### 17.3 Testing
+- [ ] Add Go unit test `TestGameScores` — verify score parsing from gamma API response
+- [ ] Update `e2e/games.spec.ts` — verify score displayed (or placeholder) on match cards
+- [ ] `go test ./...` passes
+- [ ] `npx playwright test` passes
+- [ ] `docker compose build` + verify on Docker
+
+---
+
+## Phase 18: Top Scorers Leaderboard
+
+### Overview
+Create a new `/top-scorers` page showing the **Top 10 Goalscorers** for World Cup 2026. Each entry shows rank, player name, nation flag (S3), and goals count.
+
+**Data:**
+- **Goalscorers** — Openfootball `worldcup.json` → `goals1`/`goals2` arrays per match
+- **Flags** — Polymarket S3 `country-flags/{code}.png` via team→FIFA code mapping
+
+### Tasks
+
+#### 18.1 Backend: Aggregation endpoint
+- [ ] Create `GetTopScorers` handler at `GET /api/v1/top-scorers`
+- [ ] Fetch `worldcup.json`, filter WC tournament matches, aggregate `goals1`/`goals2` by player name
+- [ ] Associate each player with their team (team1→goals1, team2→goals2)
+- [ ] Map team name → FIFA code → flag URL (via `worldcup.squads.json` `fifa_code`)
+- [ ] Sort desc by goals count, top 10
+- [ ] Response: `TopScorer[]` (rank, name, team, teamCode, flagUrl, goals)
+- [ ] Cache 60s TTL, empty array on error
+
+#### 18.2 Frontend: Top Scorers page
+- [ ] Create `TopScorers.tsx` in `frontend/src/pages/`
+- [ ] Add route `/top-scorers` in `App.tsx`
+- [ ] Add nav link **"Top Scorers"** in `Layout.tsx` (after Golden Boot)
+- [ ] Single table: rank badge (gold/silver/bronze for 1-3), name, flag 24×18px, goals count
+- [ ] Neon cyan numbers, dark glass-morphism cards
+- [ ] Loading skeleton while fetching
+
+#### 18.3 Testing
+- [ ] Go unit test `TestTopScorers` — mock match data, verify aggregation + sorting
+- [ ] Playwright E2E test — verify `/top-scorers` renders correctly
+- [ ] `go test ./...` passes
+- [ ] `npx playwright test` passes
+- [ ] `docker compose build` + Docker verification
+
+---
+
+## Phase 19: Lineups — All Nations
+
+### Overview
+Create a `/lineups` page displaying the **full 26-player squad for all 48 World Cup 2026 nations**. Team cards with expandable roster showing number, position, name, club, age, and flag.
+
+**Data:** Openfootball `worldcup.squads.json` — 48 teams × 26 players with `number`, `pos`, `name`, `club`, `date_of_birth`
+
+### Tasks
+
+#### 19.1 Backend: Proxy endpoint
+- [ ] Create `GetLineups` handler at `GET /api/v1/lineups`
+- [ ] Fetch `worldcup.squads.json` (48 teams, 26 players each)
+- [ ] Map to response: team name, FIFA code, flag URL, group, players[]
+- [ ] Each player: number, position, name, club, club country, DOB
+- [ ] Cache 60s TTL, empty array on error
+
+#### 19.2 Frontend: Lineups page
+- [ ] Create `Lineups.tsx` in `frontend/src/pages/`
+- [ ] Add route `/lineups` in `App.tsx`
+- [ ] Add nav link **"Lineups"** in `Layout.tsx`
+- [ ] Grid of 48 team cards (4-6 col responsive) with flag, team name, group label, player count
+- [ ] Click to expand — show squad table with: #, position badge, name, club, age
+- [ ] Position badges: GK=gold, DF=blue, MF=green, FW=red
+- [ ] Glass-morphism cards, loading skeleton on mount
+
+#### 19.3 Testing
+- [ ] Go unit test `TestLineups` — verify all 48 teams + 26 players mapped correctly
+- [ ] Playwright E2E test — verify `/lineups` renders team cards + expandable squads
+- [ ] `go test ./...` passes
+- [ ] `npx playwright test` passes
+- [ ] `docker compose build` + Docker verification
+
+---
+
+## Phase 20: World Cup 2026 Bracket
+
+### Overview
+Create a `/bracket` page showing a **traditional tournament bracket tree** — Round of 32 → Round of 16 → Quarter-finals → Semi-finals → Final + 3rd Place. Team flags, scores, and connector lines between rounds.
+
+**Data:** Openfootball `worldcup.json` — 32 knockout matches across 6 rounds
+
+### Tasks
+
+#### 20.1 Backend: Bracket endpoint
+- [ ] Create `GetBracket` handler at `GET /api/v1/bracket`
+- [ ] Fetch `worldcup.json`, filter knockout rounds in order
+- [ ] Map `W83`/`W84`/`L101` placeholder codes → `"TBD"`
+- [ ] Response: `BracketMatch[]` with team name, code, flag URL, scores, completion flag
+- [ ] Cache 60s TTL, empty array on error
+
+#### 20.2 Frontend: Bracket tree page
+- [ ] Create `Bracket.tsx` in `frontend/src/pages/`
+- [ ] Add route `/bracket` in `App.tsx`
+- [ ] Add nav link **"Bracket"** in `Layout.tsx`
+- [ ] CSS Grid layout: 5 columns [Ro32] [Ro16] [QF] [SF] [Final+3rd]
+- [ ] Connector lines (SVG or CSS) linking winners left→right between rounds
+- [ ] Match cards: team 1 (flag + name + score) / team 2 (flag + name + score)
+- [ ] States: played (green glow on winner) / live (pulse animation) / future (muted, dashed) / TBD (ghosted)
+- [ ] Neon cyan scores, glass-morphism cards, blue-500 connector lines
+
+#### 20.3 Testing
+- [ ] Go unit test `TestBracket` — verify ordering + placeholder mapping
+- [ ] Playwright E2E test — verify `/bracket` renders tree with all 32 matches
+- [ ] `go test ./...` passes
+- [ ] `npx playwright test` passes
+- [ ] `docker compose build` + Docker verification
