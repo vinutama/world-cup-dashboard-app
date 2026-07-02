@@ -257,16 +257,16 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [x] Returns `[]` on error — no fallback
 
 #### 15.2 Frontend: Top Continent List component integrated into Pulse Oracle
-- [ ] Create `src/components/TopContinentList.tsx`
-- [ ] Fetch `/api/v1/predictions/continent` on mount
-- [ ] Continent cards with:
+- [x] Create `src/components/TopContinentList.tsx`
+- [x] Fetch `/api/v1/predictions/continent` on mount
+- [x] Continent cards with:
   - Continent emoji/icon (🌍 Europe, 🌎 Americas, 🌍 Africa, 🌏 Asia, 🌊 Oceania)
   - Continent name + confederation label
   - Percentage (large tabular-nums)
   - Neon progress bar (glassmorphic — same design as Wisdom Wheel list)
-- [ ] Loading skeleton + error state
-- [ ] **Import into `PulseDashboard.tsx`** — render inside the right column (`<div className="lg:col-span-5">`)
-- [ ] No standalone route or nav item — lives inside Pulse Oracle
+- [x] Loading skeleton + error state
+- [x] **Import into `PulseDashboard.tsx`** — render inside the right column (`<div className="lg:col-span-5">`)
+- [x] No standalone route or nav item — lives inside Pulse Oracle
 
 #### 15.3 Testing
 - [ ] Add unit test `TestGetContinentPredictions` — verify handler returns valid JSON array
