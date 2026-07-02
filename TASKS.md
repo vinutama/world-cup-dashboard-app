@@ -392,4 +392,24 @@ type TimelineEvent struct {
                                     │
                               6.5 QA, Review & Documentation
 
+|
+
+## Phase 17: Polymarket Oracle Integration
+
+### Phase 17.1 — Backend: Score fields on Games API
+- [x] Add score fields to GameResponse (score1, score2, live, ended)
+- [x] Update GET /api/v1/games to return score data from backend source
+
+### Phase 17.2 — Frontend: Display scores on match cards
+- [x] Add score fields to `GameItem`:
+  - `score: string` / `score1: number` / `score2: number` / `live: boolean` / `ended: boolean`
+- [x] Update `MatchCard` in `src/pages/Games.tsx`:
+  - [x] Show score between team names: `{team1}  {score1} — {score2}  {team2}`
+  - [x] Not started (`score=""`): muted `0 — 0` in zinc-500
+  - [x] In progress (`live=true`): live score with subtle pulse animation
+  - [x] Ended (`ended=true`): final score, green glow on winner
+- [x] Style: neon `text-cyan-300` `font-mono tabular-nums`, larger digits
+- [x] **Auto-refetch every 5 min** — `setInterval(300000)` in a `useEffect`, calls `fetchGames()` silently, clears on unmount
+- [x] Keep existing odds display, badges, layout unchanged
+
 ```
