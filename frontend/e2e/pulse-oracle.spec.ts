@@ -73,21 +73,52 @@ test.describe('Pulse Oracle', () => {
     }
   });
 
-  test('right column is empty placeholder', async ({ page }) => {
+  test('continent pulse section renders with continent cards', async ({ page }) => {
     await page.goto('/pulse');
 
-    // Check the right column exists and is empty
-    // The grid has two children: left (col-span-7) and right (col-span-5)
-    const grid = page.locator('.grid.grid-cols-1.lg\\:grid-cols-12');
-    await expect(grid).toBeVisible();
+    // Wait for the Continent Pulse heading
+    await expect(page.locator('h2', { hasText: 'Continent Pulse' })).toBeVisible({ timeout: 15000 });
 
-    // The right column should be an empty div
+    // Right column exists
     const rightCols = page.locator('.lg\\:col-span-5');
     const count = await rightCols.count();
     expect(count).toBe(1);
 
-    // Verify no Match Oracle text is present
-    await expect(page.getByText('Match Oracle')).toHaveCount(0);
+    // Wait for data or error
+    await page.waitForFunction(() => {
+      const body = document.body;
+      if (!body) return false;
+      const text = body.textContent || '';
+      return (
+        text.includes('Continent Pulse') &&
+        (text.includes('%') || text.includes('Failed to load'))
+      );
+    }, { timeout: 15000 });
+
+    const text = await page.locator('body').textContent();
+
+    // If data loaded, verify at least some continent cards with percentages
+    if (text && !text.includes('Failed to load')) {
+      // Expect percentage signs
+      const pctEls = page.locator('.lg\\:col-span-5 text=%');
+      const pctCount = await pctEls.count();
+      expect(pctCount).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  test('continent pulse shows empty state on error', async ({ page }) => {
+    // Mock API to return 500
+    await page.route('**/api/v1/predictions/continent', async (route) => {
+      await route.fulfill({ status: 500 });
+    });
+
+    await page.goto('/pulse');
+
+    // Continent Pulse heading should still be visible
+    await expect(page.locator('h2', { hasText: 'Continent Pulse' })).toBeVisible({ timeout: 10000 });
+
+    // Error state should show
+    await expect(page.getByText(/Failed to load|Could not load/)).toBeVisible({ timeout: 10000 });
   });
 
   test('nav link navigates to pulse oracle page', async ({ page }) => {
