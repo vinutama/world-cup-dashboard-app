@@ -358,11 +358,11 @@ Enhance the Games page at `/games` to display **live scores** from the gamma API
 - [x] Keep existing odds display, badges, layout unchanged
 
 #### 17.3 Testing
-- [ ] Add Go unit test `TestGameScores` — verify score parsing from gamma API response
-- [ ] Update `e2e/games.spec.ts` — verify score displayed (or placeholder) on match cards
-- [ ] `go test ./...` passes
-- [ ] `npx playwright test` passes
-- [ ] `docker compose build` + verify on Docker
+- [x] Add Go unit test `TestGameScores` — verify score parsing from gamma API response
+- [x] Update `e2e/games.spec.ts` — verify score displayed (or placeholder) on match cards
+- [x] `go test ./...` passes
+- [x] `npx playwright test` passes
+- [x] `docker compose build` + verify on Docker
 
 ---
 
