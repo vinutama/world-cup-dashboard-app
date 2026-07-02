@@ -943,6 +943,13 @@ type GameResponse struct {
 	PercentAway int     `json:"percentAway"`
 	Volume      float64 `json:"volume"`
 	Source      string  `json:"source"`
+	Score       string  `json:"score"`
+	Score1      int     `json:"score1"`
+	Score2      int     `json:"score2"`
+	Live        bool    `json:"live"`
+	Ended       bool    `json:"ended"`
+	Period      string  `json:"period"`
+	Elapsed     string  `json:"elapsed"`
 }
 
 // slugTeamRegexp parses team codes from slug: fifwc-{teamA}-{teamB}-{YYYY-MM-DD}
@@ -1106,6 +1113,11 @@ func (h *Handler) fetchGammaGame(ctx context.Context, slug string) (*GameRespons
 	var event struct {
 		Title   string `json:"title"`
 		EndDate string `json:"endDate"`
+		Score   string `json:"score"`
+		Live    bool   `json:"live"`
+		Ended   bool   `json:"ended"`
+		Period  string `json:"period"`
+		Elapsed string `json:"elapsed"`
 		Markets []struct {
 			Question      string          `json:"question"`
 			OutcomePrices json.RawMessage `json:"outcomePrices"`
@@ -1170,6 +1182,20 @@ func (h *Handler) fetchGammaGame(ctx context.Context, slug string) (*GameRespons
 		totalVol += parseVolume(m.Volume)
 	}
 
+	// Parse score string ("2-1") into Score1 and Score2 ints
+	var score1, score2 int
+	if event.Score != "" {
+		parts := strings.SplitN(event.Score, "-", 2)
+		if len(parts) == 2 {
+			if v, err := strconv.Atoi(parts[0]); err == nil {
+				score1 = v
+			}
+			if v, err := strconv.Atoi(parts[1]); err == nil {
+				score2 = v
+			}
+		}
+	}
+
 	game := &GameResponse{
 		Slug:        slug,
 		Team1:       team1,
@@ -1180,6 +1206,13 @@ func (h *Handler) fetchGammaGame(ctx context.Context, slug string) (*GameRespons
 		PercentAway: percentAway,
 		Volume:      totalVol,
 		Source:      "Polymarket Match Odds",
+		Score:       event.Score,
+		Score1:      score1,
+		Score2:      score2,
+		Live:        event.Live,
+		Ended:       event.Ended,
+		Period:      event.Period,
+		Elapsed:     event.Elapsed,
 	}
 
 	return game, nil

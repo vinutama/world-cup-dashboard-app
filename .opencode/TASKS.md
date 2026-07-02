@@ -332,7 +332,7 @@ Enhance the Games page at `/games` to display **live scores** from the gamma API
 ### Tasks
 
 #### 17.1 Backend: Parse live scores from gamma API event
-- [ ] Add score fields to `GameResponse`:
+- [x] Add score fields to `GameResponse`:
   - `Score string` — raw `"2-0"` from gamma, `""` if not started
   - `Score1 int` — home goals (parsed from Score)
   - `Score2 int` — away goals
@@ -340,10 +340,10 @@ Enhance the Games page at `/games` to display **live scores** from the gamma API
   - `Ended bool` — match complete
   - `Period string` — `"1H"`, `"2H"`, `"VFT"`, etc.
   - `Elapsed string` — minutes elapsed
-- [ ] Expand the gamma API event JSON struct in `fetchGammaGame` to decode these new fields
-- [ ] Parse `score` → `Score1`/`Score2` ints (split on `-`)
-- [ ] Upcoming: no `score` field → `Score=""`, `Live=false`, `Ended=false`
-- [ ] Cache is already 60s TTL — scores freshen naturally
+- [x] Expand the gamma API event JSON struct in `fetchGammaGame` to decode these new fields
+- [x] Parse `score` → `Score1`/`Score2` ints (split on `-`)
+- [x] Upcoming: no `score` field → `Score=""`, `Live=false`, `Ended=false`
+- [x] Cache is already 60s TTL — scores freshen naturally
 
 #### 17.2 Frontend: Display scores on match cards
 - [ ] Add score fields to `GameItem`:
