@@ -46,6 +46,7 @@ type Handler struct {
 	gamesCache       *gamesCacheData
 	standingsCache   *standingsCacheData
 	goldenBootCache  *goldenBootCacheData
+	continentCache   *continentCacheData
 }
 
 // gamesCacheData holds a TTL-protected in-memory cache for the games list
@@ -73,6 +74,14 @@ type goldenBootCacheData struct {
 	ttl     time.Duration
 }
 
+// continentCacheData holds a TTL-protected in-memory cache for continent predictions.
+type continentCacheData struct {
+	mu      sync.Mutex
+	data    []ContinentResponse
+	expires time.Time
+	ttl     time.Duration
+}
+
 // New creates a new Handler with the given services, Redis client, and logger.
 func New(yearSvc YearService, matchSvc MatchService, rdb *redis.Client, logger *slog.Logger) *Handler {
 	if logger == nil {
@@ -92,6 +101,9 @@ func New(yearSvc YearService, matchSvc MatchService, rdb *redis.Client, logger *
 		goldenBootCache: &goldenBootCacheData{
 			ttl: 60 * time.Second,
 		},
+		continentCache: &continentCacheData{
+			ttl: 60 * time.Second,
+		},
 	}
 }
 
@@ -106,6 +118,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/goal-avalanche", h.GetGoalAvalanche)
 	mux.HandleFunc("GET /api/v1/predictions/global", h.GetGlobalLeaderboard)
 	mux.HandleFunc("GET /api/v1/predictions/match/next", h.GetNextMatchOracle)
+	mux.HandleFunc("GET /api/v1/predictions/continent", h.GetContinentPredictions)
 	mux.HandleFunc("GET /api/v1/games", h.GetGamesList)
 	mux.HandleFunc("GET /api/v1/standings", h.GetStandings)
 	mux.HandleFunc("GET /api/v1/predictions/golden-boot", h.GetGoldenBoot)
@@ -396,6 +409,14 @@ type GoldenBootResponse struct {
 	Probability int    `json:"probability"`
 }
 
+// ContinentResponse contains the predicted probability for a confederation
+// winning the 2026 World Cup, sourced from Polymarket.
+type ContinentResponse struct {
+	Continent   string `json:"continent"`
+	Label       string `json:"label"`
+	Probability int    `json:"probability"`
+}
+
 // TopGoldenBootPlayers is the maximum number of golden boot candidates to return.
 const TopGoldenBootPlayers = 10
 
@@ -633,7 +654,127 @@ func parseGoldenBootPlayer(question string) string {
 	return matches[1]
 }
 
-// --- Match Oracle ---
+// continentQuestionRe extracts continent name and confederation abbreviation from
+// a question like "Will Europe (UEFA) win the 2026 FIFA World Cup?"
+var continentQuestionRe = regexp.MustCompile(`^Will (.+?) \(([A-Z]+)\) win`)
+
+// GetContinentPredictions returns the predicted probabilities for each confederation
+// winning the 2026 World Cup, sourced from Polymarket gamma-api.
+// Uses an in-memory cache with 60s TTL. Returns [] on error — no fallback.
+func (h *Handler) GetContinentPredictions(w http.ResponseWriter, r *http.Request) {
+	// Check in-memory cache first
+	if h.continentCache != nil {
+		h.continentCache.mu.Lock()
+		if !h.continentCache.expires.IsZero() && time.Now().Before(h.continentCache.expires) {
+			data := h.continentCache.data
+			h.continentCache.mu.Unlock()
+			writeJSON(w, http.StatusOK, data)
+			return
+		}
+		h.continentCache.mu.Unlock()
+	}
+
+	// Cache miss — fetch fresh data
+	results, err := h.fetchGammaContinentPredictions(r.Context())
+	if err != nil {
+		h.logger.Warn("failed to fetch continent predictions from Gamma API (no fallback)", "error", err)
+		writeJSON(w, http.StatusOK, []ContinentResponse{})
+		return
+	}
+
+	// Cache the result
+	if h.continentCache != nil {
+		h.continentCache.mu.Lock()
+		h.continentCache.data = results
+		h.continentCache.expires = time.Now().Add(h.continentCache.ttl)
+		h.continentCache.mu.Unlock()
+	}
+
+	writeJSON(w, http.StatusOK, results)
+}
+
+// fetchGammaContinentPredictions queries the Polymarket gamma-api for the
+// "Which continent will win the World Cup?" event, extracts confederation
+// names and Yes probabilities, sorts descending by probability.
+func (h *Handler) fetchGammaContinentPredictions(ctx context.Context) ([]ContinentResponse, error) {
+	endpoint := "https://gamma-api.polymarket.com/events?slug=which-continent-will-win-the-world-cup&closed=false"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating continent request: %w", err)
+	}
+	req.Header.Set("User-Agent", "WorldCupDashboard/1.0")
+
+	client := gammaHTTPClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("calling continent gamma-api: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gamma-api continent status: %d", resp.StatusCode)
+	}
+
+	// The /events endpoint returns an array of event objects, each with a markets array
+	type GammaEvent struct {
+		Markets []struct {
+			Question      string          `json:"question"`
+			OutcomePrices json.RawMessage `json:"outcomePrices"`
+		} `json:"markets"`
+	}
+
+	var events []GammaEvent
+	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
+		return nil, fmt.Errorf("decoding continent response: %w", err)
+	}
+
+	if len(events) == 0 {
+		return nil, errors.New("continent events response was empty")
+	}
+
+	var results []ContinentResponse
+	for _, event := range events {
+		for _, market := range event.Markets {
+			// Parse continent and confederation from question
+			matches := continentQuestionRe.FindStringSubmatch(market.Question)
+			if len(matches) < 3 {
+				continue // skip "another continent" and other non-standard questions
+			}
+			continent := matches[1]
+			confederation := matches[2]
+
+			// Extract Yes probability (outcomePrices[0])
+			prices := parseRawJsonSlice(market.OutcomePrices)
+			if len(prices) == 0 {
+				continue
+			}
+
+			prob := priceToPercent(prices[0])
+			if prob == 0 {
+				continue
+			}
+
+			results = append(results, ContinentResponse{
+				Continent:   continent,
+				Label:       continent + " (" + confederation + ")",
+				Probability: prob,
+			})
+		}
+	}
+
+	if len(results) == 0 {
+		return nil, errors.New("successfully hit Gamma API but parsed 0 valid continent markets")
+	}
+
+	// Sort descending by probability
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Probability > results[j].Probability
+	})
+
+	return results, nil
+}
+
+// GetNextMatchOracle returns the next match's prediction odds
 
 // UpcomingMatchResponse is a single upcoming match prediction with 3-way odds
 // (home/draw/away) fetched purely from Polymarket gamma-api events.
