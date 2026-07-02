@@ -62,6 +62,52 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
+// ─ Score Display ───────────────────────────────
+function ScoreDisplay({ game }: { game: GameItem }) {
+  const score1 = game.score1 ?? 0;
+  const score2 = game.score2 ?? 0;
+
+  // Not started — muted placeholder
+  if (!game.live && !game.ended) {
+    return (
+      <span className="text-sm font-mono tabular-nums text-zinc-500">
+        0 — 0
+      </span>
+    );
+  }
+
+  // In progress — live score with subtle pulse
+  if (game.live) {
+    return (
+      <span className="text-lg font-mono tabular-nums text-cyan-300 animate-pulse">
+        {score1} — {score2}
+      </span>
+    );
+  }
+
+  // Ended — final score, green glow on winner
+  if (game.ended) {
+    const isDraw = score1 === score2;
+    return (
+      <span
+        className={`text-lg font-mono tabular-nums ${
+          isDraw
+            ? 'text-amber-400'
+            : 'text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.5)]'
+        }`}
+      >
+        {score1} — {score2}
+      </span>
+    );
+  }
+
+  return (
+    <span className="text-sm font-mono tabular-nums text-zinc-500">
+      0 — 0
+    </span>
+  );
+}
+
 // ─ Match Card ──────────────────────────────────
 function MatchCard({ game }: { game: GameItem }) {
   const isPast = game.date && new Date(game.date + 'T23:59:59Z') < new Date();
@@ -102,6 +148,11 @@ function MatchCard({ game }: { game: GameItem }) {
         <div className="flex-shrink-0 text-center mx-2">
           <span className="block text-[10px] text-zinc-500 uppercase tracking-wider">Draw</span>
           <span className="text-lg font-bold text-amber-400 tabular-nums">{game.percentDraw}%</span>
+        </div>
+
+        {/* Score */}
+        <div className="flex-shrink-0 mx-3 text-center">
+          <ScoreDisplay game={game} />
         </div>
 
         {/* VS */}
@@ -164,16 +215,19 @@ export default function Games() {
     setLoading(true);
     setError(false);
 
-    fetch(`${API_BASE}/games`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: GameItem[]) => {
-        if (!cancelled) {
-          setGames(data);
-          setLoading(false);
-        }
+    const fetchGames = () =>
+      fetch(`${API_BASE}/games`)
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((data: GameItem[]) => {
+          if (!cancelled) setGames(data);
+        });
+
+    fetchGames()
+      .then(() => {
+        if (!cancelled) setLoading(false);
       })
       .catch(() => {
         if (!cancelled) {
@@ -182,8 +236,16 @@ export default function Games() {
         }
       });
 
+    // Auto-refetch every 5 minutes (silent, no loading state)
+    const interval = setInterval(() => {
+      fetchGames().catch(() => {
+        /* silent — don't flash error on background refetch */
+      });
+    }, 300_000);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, []);
 
