@@ -29,3 +29,9 @@ export interface GoldenBootPlayer {
   player: string;
   probability: number;
 }
+
+export interface ContinentPrediction {
+  continent: string;
+  label: string;
+  probability: number;
+}

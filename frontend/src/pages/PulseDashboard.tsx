@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { GlobalFavorite } from '../types/oracle';
 import WisdomWheel, { WisdomWheelSkeleton } from '../components/WisdomWheel';
+import TopContinentList from '../components/TopContinentList';
 
 // ─ Helpers ─────────────────────────────────────
 const rankColor = (i: number) => {
@@ -123,8 +124,10 @@ export default function PulseDashboard() {
           {loadingWheel ? <WheelSkeleton /> : <WisdomWheelList data={leaderboard} />}
         </div>
 
-        {/* Right: placeholder — continent list later */}
-        <div className="lg:col-span-5" />
+        {/* Right: Continent Pulse predictions */}
+        <div className="lg:col-span-5">
+          <TopContinentList />
+        </div>
       </div>
     </div>
   );
