@@ -269,11 +269,11 @@ Add a new dashboard page showing which **continent** is predicted to win the 202
 - [x] No standalone route or nav item — lives inside Pulse Oracle
 
 #### 15.3 Testing
-- [ ] Add unit test `TestGetContinentPredictions` — verify handler returns valid JSON array
-- [ ] Update `e2e/pulse-oracle.spec.ts` — verify continent list renders in right column when data loads
-- [ ] `go test ./...` passes
-- [ ] `npx playwright test` passes
-- [ ] `docker compose build` + verification
+- [x] Add unit test `TestGetContinentPredictions` — verify handler returns valid JSON array
+- [x] Update `e2e/pulse-oracle.spec.ts` — verify continent list renders in right column when data loads
+- [x] `go test ./...` passes
+- [x] `npx playwright test` passes
+- [x] `docker compose build` + verification
 
 ---
 
