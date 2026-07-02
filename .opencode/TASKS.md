@@ -346,16 +346,16 @@ Enhance the Games page at `/games` to display **live scores** from the gamma API
 - [x] Cache is already 60s TTL — scores freshen naturally
 
 #### 17.2 Frontend: Display scores on match cards
-- [ ] Add score fields to `GameItem`:
+- [x] Add score fields to `GameItem`:
   - `score: string` / `score1: number` / `score2: number` / `live: boolean` / `ended: boolean`
-- [ ] Update `MatchCard` in `src/pages/Games.tsx`:
-  - [ ] Show score between team names: `{team1}  {score1} — {score2}  {team2}`
-  - [ ] Not started (`score=""`): muted `0 — 0` in zinc-500
-  - [ ] In progress (`live=true`): live score with subtle pulse animation
-  - [ ] Ended (`ended=true`): final score, green glow on winner
-- [ ] Style: neon `text-cyan-300` `font-mono tabular-nums`, larger digits
-- [ ] **Auto-refetch every 5 min** — `setInterval(300000)` in a `useEffect`, calls `fetchGames()` silently, clears on unmount
-- [ ] Keep existing odds display, badges, layout unchanged
+- [x] Update `MatchCard` in `src/pages/Games.tsx`:
+  - [x] Show score between team names: `{team1}  {score1} — {score2}  {team2}`
+  - [x] Not started (`score=""`): muted `0 — 0` in zinc-500
+  - [x] In progress (`live=true`): live score with subtle pulse animation
+  - [x] Ended (`ended=true`): final score, green glow on winner
+- [x] Style: neon `text-cyan-300` `font-mono tabular-nums`, larger digits
+- [x] **Auto-refetch every 5 min** — `setInterval(300000)` in a `useEffect`, calls `fetchGames()` silently, clears on unmount
+- [x] Keep existing odds display, badges, layout unchanged
 
 #### 17.3 Testing
 - [ ] Add Go unit test `TestGameScores` — verify score parsing from gamma API response
