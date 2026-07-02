@@ -23,6 +23,10 @@ export interface GameItem {
   percentAway: number;
   volume: number;
   source: string;
+  score1?: number;
+  score2?: number;
+  live?: boolean;
+  ended?: boolean;
 }
 
 export interface GoldenBootPlayer {
