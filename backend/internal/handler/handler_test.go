@@ -486,3 +486,31 @@ func TestGetContinentPredictions_ReturnsEmptyJSONArrayOnError(t *testing.T) {
 		t.Logf("got %d continent entries (unexpected for test env, but valid JSON)", len(result))
 	}
 }
+
+func TestParseScoreString(t *testing.T) {
+	tests := []struct {
+		name   string
+		score  string
+		want1  int
+		want2  int
+	}{
+		{name: "normal score 2-1", score: "2-1", want1: 2, want2: 1},
+		{name: "zero draw 0-0", score: "0-0", want1: 0, want2: 0},
+		{name: "big score 5-3", score: "5-3", want1: 5, want2: 3},
+		{name: "double digit 10-0", score: "10-0", want1: 10, want2: 0},
+		{name: "empty string", score: "", want1: 0, want2: 0},
+		{name: "missing second half", score: "3-", want1: 3, want2: 0},
+		{name: "no dash", score: "3", want1: 0, want2: 0},
+		{name: "non-numeric", score: "abc-def", want1: 0, want2: 0},
+		{name: "partial numeric", score: "2-x", want1: 2, want2: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got1, got2 := parseScoreString(tt.score)
+			if got1 != tt.want1 || got2 != tt.want2 {
+				t.Errorf("parseScoreString(%q) = (%d, %d), want (%d, %d)", tt.score, got1, got2, tt.want1, tt.want2)
+			}
+		})
+	}
+}
